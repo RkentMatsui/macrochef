@@ -96,6 +96,8 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
   // Loading / error
   bool _loading = true;
   bool _llmFailed = false;
+  bool _voiceFailed = false; // sherpa init failed/timed out (retryable)
+  String? _voiceError; // underlying reason (shown on the error screen)
 
   // Loop control
   bool _loopActive = false;
@@ -172,13 +174,14 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
     final rawSpeech = ref.read(speechProvider);
     try {
       await rawSpeech.init();
-    } catch (_) {
-      // Voice pack missing/failed (e.g. deleted after this screen opened, or a
-      // gate race). Surface the error banner instead of hanging on the spinner.
+    } catch (e) {
+      // Voice engine failed or timed out loading its models (or the pack is
+      // missing). Surface a retryable error instead of an endless spinner.
       if (mounted) {
         setState(() {
           _loading = false;
-          _llmFailed = true;
+          _voiceFailed = true;
+          _voiceError = e.toString();
         });
       }
       return;
@@ -331,7 +334,9 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
       ),
       body: _loading
           ? _buildLoading()
-          : _llmFailed && _session == null
+          : _voiceFailed && _session == null
+              ? _buildVoiceError(tt)
+              : _llmFailed && _session == null
               ? _buildLlmError(tt)
               : Column(
                   children: [
@@ -379,6 +384,51 @@ class _CookingScreenState extends ConsumerState<CookingScreen> {
               'AI features need an API key in Settings',
               textAlign: TextAlign.center,
               style: tt.bodyMedium?.copyWith(color: AppColors.textMid),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Voice engine failed/timed out loading its models — retryable (the load is
+  /// bounded so this replaces the old endless "Preparing…" spinner).
+  Widget _buildVoiceError(TextTheme tt) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(PhosphorIconsRegular.warningCircle,
+                color: AppColors.carb, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              "The voice engine didn't finish loading. This can happen on the "
+              'first launch or when the device is low on memory.',
+              textAlign: TextAlign.center,
+              style: tt.bodyMedium?.copyWith(color: AppColors.textMid),
+            ),
+            if (_voiceError != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _voiceError!,
+                textAlign: TextAlign.center,
+                style: tt.bodySmall?.copyWith(color: AppColors.textLow),
+              ),
+            ],
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: () {
+                setState(() {
+                  _voiceFailed = false;
+                  _voiceError = null;
+                  _loading = true;
+                });
+                _initSession();
+              },
+              icon: const Icon(PhosphorIconsRegular.arrowClockwise, size: 18),
+              label: const Text('Try again'),
             ),
           ],
         ),

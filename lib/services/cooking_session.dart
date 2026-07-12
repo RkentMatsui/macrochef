@@ -126,6 +126,9 @@ class CookingSession {
           ? 'The user is cooking. Recipe steps: ${steps.join(" | ")}. '
               'Current step: ${currentStep.value + 1}.'
           : 'The user is cooking and logging food.';
+      // Bound the call so a stalled model (e.g. a large on-device LLM loading
+      // for the first time) can't freeze the session — the catch below speaks a
+      // graceful fallback on timeout.
       final answer = await model.chat([
         ChatMessage(
           'system',
@@ -134,7 +137,7 @@ class CookingSession {
               'Plain text only, no markdown or lists.',
         ),
         ChatMessage('user', text),
-      ]);
+      ]).timeout(const Duration(seconds: 45));
       final reply = answer.trim();
       await speech.speak(
         reply.isEmpty ? "Sorry, I didn't catch that." : reply,

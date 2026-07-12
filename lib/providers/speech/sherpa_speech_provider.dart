@@ -102,7 +102,25 @@ class SherpaSpeechProvider implements SpeechProvider {
 
     // First message from worker is its SendPort.
     // (handled in _onWorkerMessage below — wait for ready)
-    await _ready.future;
+    try {
+      // Bound the model load: a stalled or crashed worker (e.g. low memory)
+      // otherwise leaves the cook screen on an endless "Preparing…" spinner.
+      // Surface it as an error the UI can show + retry instead.
+      await _ready.future.timeout(const Duration(seconds: 120));
+    } catch (e) {
+      _cleanupWorker();
+      throw StateError('Voice engine did not start ($e; last stage: '
+          '${_initStage.isEmpty ? "spawn" : _initStage})');
+    }
+  }
+
+  /// Kills the worker isolate and clears its ports so a later init() re-spawns.
+  void _cleanupWorker() {
+    _isolate?.kill(priority: Isolate.immediate);
+    _fromWorker?.close();
+    _isolate = null;
+    _toWorker = null;
+    _fromWorker = null;
   }
 
   void _onWorkerMessage(dynamic message) {
@@ -128,6 +146,11 @@ class SherpaSpeechProvider implements SpeechProvider {
     final event = message['event'] as String?;
 
     switch (event) {
+      case 'progress':
+        // Which model the worker is currently loading; the last one seen before
+        // a timeout identifies the model that stalled.
+        _initStage = message['stage'] as String? ?? _initStage;
+
       case 'ready':
         if (!_ready.isCompleted) _ready.complete();
 
@@ -150,6 +173,12 @@ class SherpaSpeechProvider implements SpeechProvider {
 
       case 'error':
         debugPrint('[STT] worker error: ${message['message']}');
+        // A failure during init (model load) must fail init() rather than leave
+        // the caller awaiting _ready forever.
+        if (!_ready.isCompleted) {
+          _ready.completeError(
+              StateError('voice worker init failed: ${message['message']}'));
+        }
     }
   }
 
@@ -162,6 +191,7 @@ class SherpaSpeechProvider implements SpeechProvider {
   String _pendingTtsLexicon = '';
   String _pendingTtsTokens = '';
   String _pendingOut = '';
+  String _initStage = ''; // last model the worker began loading (for diagnostics)
 
   // TTS request tracking (worker synthesizes; completer fires on the WAV path).
   int _ttsReq = 0;

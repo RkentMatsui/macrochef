@@ -92,6 +92,11 @@ void voiceWorkerMain(SendPort mainSendPort) {
 
           cb = sherpa.CircularBuffer(capacity: 30 * 16000);
 
+          // Emit which model is about to load. These native constructors are
+          // synchronous FFI calls that can't report progress or even an error if
+          // they stall — so the last stage seen before a timeout tells us which
+          // model hung.
+          mainSendPort.send({'event': 'progress', 'stage': 'vad'});
           vad = sherpa.VoiceActivityDetector(
             config: sherpa.VadModelConfig(
               sileroVad: sherpa.SileroVadModelConfig(
@@ -112,6 +117,7 @@ void voiceWorkerMain(SendPort mainSendPort) {
             bufferSizeInSeconds: 30,
           );
 
+          mainSendPort.send({'event': 'progress', 'stage': 'asr'});
           recognizer = sherpa.OfflineRecognizer(
             sherpa.OfflineRecognizerConfig(
               feat: const sherpa.FeatureConfig(
@@ -134,6 +140,7 @@ void voiceWorkerMain(SendPort mainSendPort) {
             ),
           );
 
+          mainSendPort.send({'event': 'progress', 'stage': 'tts'});
           tts = sherpa.OfflineTts(
             sherpa.OfflineTtsConfig(
               model: sherpa.OfflineTtsModelConfig(
