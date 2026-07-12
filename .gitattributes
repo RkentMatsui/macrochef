@@ -1,0 +1,20 @@
+# Normalize line endings: let git decide text vs binary, and check text out with
+# the platform's native EOL — EXCEPT shell scripts, which must stay LF or bash on
+# Windows (git-bash) breaks with "set: pipefail: invalid option name".
+* text=auto
+
+*.sh    text eol=lf
+tool/**  text eol=lf
+
+# Generated Dart (drift) — treat as text, LF for consistent diffs.
+*.dart  text
+
+# Binary assets — never touch.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.onnx  binary
+*.bin   binary
+*.task  binary
+*.keystore binary

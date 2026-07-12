@@ -1,0 +1,6 @@
+# Copy this file to android/key.properties and fill in private values.
+# Keep android/key.properties and *.jks files out of git.
+storePassword=replace-with-keystore-password
+keyPassword=replace-with-key-password
+keyAlias=macrochef
+storeFile=macrochef-release.jks
