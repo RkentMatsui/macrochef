@@ -218,6 +218,12 @@ class _GenerateRecipeScreenState extends ConsumerState<GenerateRecipeScreen> {
     final servings = _batchServings;
 
     final messenger = ScaffoldMessenger.of(context);
+    if (!await checkAiReady(ref)) {
+      messenger.showSnackBar(const SnackBar(
+          content:
+              Text('Set up an AI provider in Settings to generate recipes')));
+      return;
+    }
     setState(() {
       _loading = true;
       _result = null;

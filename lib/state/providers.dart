@@ -19,6 +19,9 @@ import '../data/repositories/training_repository.dart';
 import '../data/repositories/daily_activity_repository.dart';
 import '../providers/llm/llm_provider.dart';
 import '../providers/llm/llm_provider_factory.dart';
+import '../providers/llm/ai_readiness.dart';
+import '../providers/llm/local/local_models.dart';
+import '../providers/llm/local/local_model_manager.dart';
 import '../providers/speech/sherpa_speech_provider.dart';
 import '../providers/speech/speech_provider.dart';
 import '../providers/speech/stub_speech_provider.dart';
@@ -204,6 +207,38 @@ final llmProvider = FutureProvider<LLMProvider>((ref) async {
 
   return buildLlm(kind, apiKey, model);
 });
+
+/// Live check of whether the selected AI provider is usable (cloud → API key
+/// set; local → model downloaded). Read fresh at the moment an AI-requiring
+/// action is attempted so it never goes stale after the user configures a
+/// provider. See [aiProviderReady]; used to gate cooking / recipe & program
+/// generation with a hint instead of failing (or hanging) at call time.
+Future<bool> checkAiReady(WidgetRef ref) async {
+  final settings = ref.read(settingsRepositoryProvider);
+  final secure = ref.read(secureStorageProvider);
+  final kindStr = await settings.get('llm_kind') ?? 'claude';
+  final kind = LlmKind.values.firstWhere(
+    (e) => e.name == kindStr,
+    orElse: () => LlmKind.claude,
+  );
+  if (kind == LlmKind.local) {
+    final savedModel = await settings.get('llm_model');
+    final model = localModelById(savedModel ?? '') ?? localModels.first;
+    final state = await LocalModelManager().stateOf(model);
+    return aiProviderReady(
+      kind: kind,
+      hasApiKey: false,
+      localModelReady: state == LocalModelState.downloaded,
+    );
+  }
+  final key = (await secure.read(key: 'llm_api_key_${kind.name}')) ??
+      (await secure.read(key: 'llm_api_key'));
+  return aiProviderReady(
+    kind: kind,
+    hasApiKey: key != null && key.trim().isNotEmpty,
+    localModelReady: false,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Services

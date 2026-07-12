@@ -54,6 +54,11 @@ class _ProgramGeneratorScreenState
 
   Future<void> _generate() async {
     final messenger = ScaffoldMessenger.of(context);
+    if (!await checkAiReady(ref)) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Set up an AI provider in Settings to generate a plan')));
+      return;
+    }
     final goal = _goalCtrl.text.trim();
     setState(() {
       _loading = true;

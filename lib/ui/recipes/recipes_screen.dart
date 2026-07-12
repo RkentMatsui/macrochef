@@ -87,6 +87,7 @@ class _RecipesViewState extends ConsumerState<_RecipesView> {
     final steps = await repo.stepsFor(recipe.id);
     final ingredients = await repo.ingredientsFor(recipe.id);
     final voiceReady = await VoiceAssets.isReady();
+    final aiReady = await checkAiReady(ref);
     if (!mounted) return;
     if (steps.isEmpty) {
       messenger.showSnackBar(
@@ -98,6 +99,13 @@ class _RecipesViewState extends ConsumerState<_RecipesView> {
       messenger.showSnackBar(
         const SnackBar(
             content: Text('Download the voice pack in Settings to cook')),
+      );
+      return;
+    }
+    if (!aiReady) {
+      messenger.showSnackBar(
+        const SnackBar(
+            content: Text('Set up an AI provider in Settings to cook')),
       );
       return;
     }
@@ -345,6 +353,7 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
   RecipeBreakdown? _breakdown;
   bool _breakdownLoading = true;
   bool _voiceReady = false;
+  bool _aiReady = false;
 
   @override
   void initState() {
@@ -355,6 +364,9 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
     _loadServings();
     VoiceAssets.isReady().then((r) {
       if (mounted) setState(() => _voiceReady = r);
+    });
+    checkAiReady(ref).then((r) {
+      if (mounted) setState(() => _aiReady = r);
     });
   }
 
@@ -771,17 +783,23 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
             label: 'Start Cooking',
             icon: PhosphorIconsRegular.play,
             onPressed: canStartCooking(
-                    hasSteps: steps.isNotEmpty, voiceReady: _voiceReady)
+                    hasSteps: steps.isNotEmpty,
+                    voiceReady: _voiceReady,
+                    aiReady: _aiReady)
                 ? _startCooking
                 : null,
           ).animate(delay: 200.ms).fadeIn(duration: 300.ms),
           if (cookDisabledHint(
-                  hasSteps: steps.isNotEmpty, voiceReady: _voiceReady) !=
+                  hasSteps: steps.isNotEmpty,
+                  voiceReady: _voiceReady,
+                  aiReady: _aiReady) !=
               null) ...[
             const SizedBox(height: 6),
             Text(
               cookDisabledHint(
-                  hasSteps: steps.isNotEmpty, voiceReady: _voiceReady)!,
+                  hasSteps: steps.isNotEmpty,
+                  voiceReady: _voiceReady,
+                  aiReady: _aiReady)!,
               style: const TextStyle(color: AppColors.textLow, fontSize: 12),
               textAlign: TextAlign.center,
             ),
