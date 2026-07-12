@@ -24,6 +24,11 @@ model — recipe generation, macro estimates, and voice all work offline.
   [flutter_gemma](https://pub.dev/packages/flutter_gemma) / MediaPipe — recipe
   generation and macro estimates with **no API key and no network**. Cloud
   providers (Claude/OpenAI/Gemini/Groq) remain available.
+- **Offline nutrition pack** — an optional downloadable pack of ~8,000 USDA
+  FoodData Central foods with on-device hybrid search (FTS5 keyword prefilter +
+  MiniLM sentence-embedding re-rank). A confident match returns exact USDA
+  macros; a miss grounds the AI estimate in the closest real foods — all fully
+  offline.
 - **Backup & restore** — a silent auto-backup runs on launch (rotating
   snapshots, also mirrored to the Downloads folder), plus in-app manual
   backup/restore of the whole database and a reminder when the last offsite
