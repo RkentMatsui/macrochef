@@ -364,6 +364,11 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
     _loadServings();
     VoiceAssets.isReady().then((r) {
       if (mounted) setState(() => _voiceReady = r);
+      // Warm the voice engine in the background so the first "Start Cooking"
+      // doesn't wait on the ~234 MB model load. Only for users who have the
+      // voice pack (real cook intent); init() is idempotent so it's a no-op if
+      // already warm, and errors are ignored (the cook flow gates on readiness).
+      if (r) ref.read(speechProvider).init().catchError((Object _) {});
     });
     checkAiReady(ref).then((r) {
       if (mounted) setState(() => _aiReady = r);

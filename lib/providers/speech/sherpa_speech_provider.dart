@@ -38,8 +38,24 @@ class SherpaSpeechProvider implements SpeechProvider {
 
   // ── init ──────────────────────────────────────────────────────────────────
 
+  // A single in-flight init future so concurrent callers share one load and we
+  // never spawn a second worker.
+  Future<void>? _initInFlight;
+
   @override
   Future<void> init() async {
+    // Reuse a warm worker (models already loaded). Previously init() re-spawned
+    // the isolate and reloaded ~234 MB of ONNX models on *every* cook session
+    // (and leaked the old isolate) — this made each "Preparing cooking session"
+    // pay the full load. Now the load happens once per app run.
+    if (_toWorker != null && _ready.isCompleted) return;
+    // Share one in-flight load across concurrent callers; clear on completion so
+    // a failed load (e.g. pack not ready yet) can be retried.
+    return _initInFlight ??=
+        _doInit().whenComplete(() => _initInFlight = null);
+  }
+
+  Future<void> _doInit() async {
     final assets = await VoiceAssets.ensure();
 
     // Duck (not interrupt) other audio while the assistant speaks. Without an
