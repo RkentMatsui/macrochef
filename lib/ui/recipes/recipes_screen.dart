@@ -1026,6 +1026,33 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
     ).animate(delay: 200.ms).fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0);
   }
 
+  /// Small chip naming where an ingredient's macros came from. Colours match
+  /// the daily-log source badge so 'local' reads the same across the app.
+  Widget _sourceBadge(MacroSource source) {
+    final (String label, Color color) = switch (source) {
+      MacroSource.localDb => ('local', AppColors.accent),
+      MacroSource.usda => ('usda', AppColors.carb),
+      MacroSource.off => ('off', AppColors.emberSoft),
+      MacroSource.ai => ('ai', AppColors.protein),
+      MacroSource.manual => ('manual', AppColors.textMid),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+
   Widget _breakdownRow(
       BuildContext context, TextTheme tt, IngredientContribution i, double maxKcal) {
     final counted = i.status == ContributionStatus.counted;
@@ -1054,6 +1081,10 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
                   ),
                 ),
               ),
+              if (counted && i.source != null) ...[
+                _sourceBadge(i.source!),
+                const SizedBox(width: 8),
+              ],
               if (counted)
                 Text('${kcal.toStringAsFixed(0)} kcal',
                     style: tt.bodySmall?.copyWith(color: AppColors.textMid)),

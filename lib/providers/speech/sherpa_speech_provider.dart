@@ -30,6 +30,7 @@ class SherpaSpeechProvider implements SpeechProvider {
   Isolate? _isolate;
   SendPort? _toWorker;
   ReceivePort? _fromWorker;
+  ReceivePort? _errorPort;
   Completer<void> _ready = Completer<void>();
 
   // Callbacks stored for the active listening turn.
@@ -96,7 +97,24 @@ class SherpaSpeechProvider implements SpeechProvider {
     _ready = Completer<void>();
     final fromWorker = _fromWorker = ReceivePort();
 
-    _isolate = await Isolate.spawn(voiceWorkerMain, fromWorker.sendPort);
+    // Capture uncaught worker crashes (e.g. sherpa.initBindings() failing to
+    // load the native lib runs *before* the worker's try/catch). Without this
+    // the isolate would die silently and we'd only see a generic timeout.
+    final errorPort = _errorPort = ReceivePort();
+    errorPort.listen((dynamic err) {
+      final detail = err is List && err.isNotEmpty ? err.first : err;
+      if (!_ready.isCompleted) {
+        _ready.completeError(
+            StateError('voice worker crashed: $detail (stage: '
+                '${_initStage.isEmpty ? "init-bindings" : _initStage})'));
+      }
+    });
+
+    _isolate = await Isolate.spawn(
+      voiceWorkerMain,
+      fromWorker.sendPort,
+      onError: errorPort.sendPort,
+    );
 
     fromWorker.listen(_onWorkerMessage);
 
@@ -118,9 +136,11 @@ class SherpaSpeechProvider implements SpeechProvider {
   void _cleanupWorker() {
     _isolate?.kill(priority: Isolate.immediate);
     _fromWorker?.close();
+    _errorPort?.close();
     _isolate = null;
     _toWorker = null;
     _fromWorker = null;
+    _errorPort = null;
   }
 
   void _onWorkerMessage(dynamic message) {

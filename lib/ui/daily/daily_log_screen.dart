@@ -17,6 +17,7 @@ import '../../services/date_range.dart';
 import '../../services/food_db/usda_client.dart';
 import '../../services/food_units.dart';
 import '../../services/macro_calculator.dart';
+import '../../services/nutrition/food_row.dart';
 import '../../services/weight_service.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
@@ -806,6 +807,8 @@ class _LogEntryRow extends StatelessWidget {
 
   Color _sourceBadgeColor(String source) {
     switch (source) {
+      case 'localDb':
+        return AppColors.accent.withValues(alpha: 0.2);
       case 'usda':
         return AppColors.carb.withValues(alpha: 0.2);
       case 'ai':
@@ -819,6 +822,8 @@ class _LogEntryRow extends StatelessWidget {
 
   Color _sourceBadgeTextColor(String source) {
     switch (source) {
+      case 'localDb':
+        return AppColors.accent;
       case 'usda':
         return AppColors.carb;
       case 'ai':
@@ -829,6 +834,10 @@ class _LogEntryRow extends StatelessWidget {
         return AppColors.emberSoft;
     }
   }
+
+  /// Human-facing badge text. Only the pack source needs relabelling — its raw
+  /// enum name ('localDb') is camelCase; the rest already read cleanly.
+  String _sourceLabel(String source) => source == 'localDb' ? 'local' : source;
 
   @override
   Widget build(BuildContext context) {
@@ -908,7 +917,7 @@ class _LogEntryRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                entry.source,
+                _sourceLabel(entry.source),
                 style: tt.labelSmall?.copyWith(
                   color: _sourceBadgeTextColor(entry.source),
                   fontWeight: FontWeight.w600,
@@ -1005,6 +1014,7 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
   // Autocomplete
   Timer? _debounce;
   List<FoodMacros> _cacheHits = [];
+  List<FoodRow> _localHits = [];
   List<UsdaCandidate> _usdaCandidates = [];
   bool _autocompleteLoading = false;
   // Monotonic guard: each debounced search bumps this; stale futures that
@@ -1387,7 +1397,7 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
   void _onNameChanged(String value) {
     _debounce?.cancel();
     if (value.trim().length < 2) {
-      setState(() { _cacheHits = []; _usdaCandidates = []; _searched = false; });
+      setState(() { _cacheHits = []; _localHits = []; _usdaCandidates = []; _searched = false; });
       return;
     }
     final seq = ++_searchSeq;
@@ -1398,11 +1408,19 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
       final lookup = await ref.read(foodLookupProvider.future);
       final cacheResults = await cache.search(value.trim());
       final usdaResults = await lookup.usda.searchCandidates(value.trim());
+      // Local nutrition pack, when enabled + downloaded. Uses the fast lexical
+      // FTS prefilter only (no per-keystroke ONNX embedding) so typeahead stays
+      // snappy; the semantic re-rank is reserved for resolve()-time direct hits.
+      final retriever = await ref.read(nutritionRetrieverProvider.future);
+      final localResults = retriever == null
+          ? const <FoodRow>[]
+          : retriever.db.ftsPrefilter(value.trim(), limit: 8);
       // A newer keystroke superseded this search while it was in flight —
       // drop the stale results so they can't overwrite the latest query.
       if (!mounted || seq != _searchSeq) return;
       setState(() {
         _cacheHits = cacheResults;
+        _localHits = localResults;
         _usdaCandidates = usdaResults;
         _autocompleteLoading = false;
         _searched = true;
@@ -1412,7 +1430,7 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
 
   void _selectCacheFood(FoodMacros fm) {
     _nameCtrl.text = fm.name;
-    setState(() { _resolvedMacros = fm; _cacheHits = []; _usdaCandidates = []; _searched = false; });
+    setState(() { _resolvedMacros = fm; _cacheHits = []; _localHits = []; _usdaCandidates = []; _searched = false; });
     _applyRememberedPortion(fm);
   }
 
@@ -1448,6 +1466,18 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
     setState(() {
       _resolvedMacros = FoodMacros(name: c.description, perHundred: c.perHundred, source: MacroSource.usda, isEstimate: false);
       _cacheHits = [];
+      _localHits = [];
+      _usdaCandidates = [];
+      _searched = false;
+    });
+  }
+
+  void _selectLocalFood(FoodRow row) {
+    _nameCtrl.text = row.name;
+    setState(() {
+      _resolvedMacros = FoodMacros(name: row.name, perHundred: row.per, source: MacroSource.localDb, isEstimate: false);
+      _cacheHits = [];
+      _localHits = [];
       _usdaCandidates = [];
       _searched = false;
     });
@@ -1794,6 +1824,17 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
                                 style: const TextStyle(color: AppColors.textMid, fontSize: 11)),
                             onTap: () => _selectCacheFood(fm))),
                         ],
+                        if (_localHits.isNotEmpty) ...[
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(12, 8, 12, 4),
+                            child: Text('Local', style: TextStyle(color: AppColors.textMid, fontSize: 11, fontWeight: FontWeight.w600))),
+                          ..._localHits.map((row) => ListTile(
+                            dense: true,
+                            title: Text(row.name, style: const TextStyle(color: AppColors.textHi, fontSize: 13)),
+                            subtitle: Text('${row.per.kcal.toStringAsFixed(0)} kcal/100g',
+                                style: const TextStyle(color: AppColors.textMid, fontSize: 11)),
+                            onTap: () => _selectLocalFood(row))),
+                        ],
                         if (_usdaCandidates.isNotEmpty) ...[
                           const Padding(
                             padding: EdgeInsets.fromLTRB(12, 8, 12, 4),
@@ -1805,17 +1846,17 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
                                 style: const TextStyle(color: AppColors.textMid, fontSize: 11)),
                             onTap: () => _selectUsdaCandidate(c))),
                         ],
-                        if (_cacheHits.isEmpty && _usdaCandidates.isEmpty)
+                        if (_cacheHits.isEmpty && _localHits.isEmpty && _usdaCandidates.isEmpty)
                           const Padding(
                             padding: EdgeInsets.fromLTRB(12, 10, 12, 2),
-                            child: Text('No matches in your foods or USDA',
+                            child: Text('No matches in your foods, local pack, or USDA',
                                 style: TextStyle(color: AppColors.textMid, fontSize: 12))),
                         ListTile(
                           dense: true,
                           leading: const Icon(PhosphorIconsRegular.sparkle, color: AppColors.ember, size: 18),
                           title: Text('Let AI decide for "${_nameCtrl.text.trim()}"',
                               style: const TextStyle(color: AppColors.ember, fontSize: 13, fontWeight: FontWeight.w600)),
-                          onTap: () => setState(() { _resolvedMacros = null; _cacheHits = []; _usdaCandidates = []; _searched = false; })),
+                          onTap: () => setState(() { _resolvedMacros = null; _cacheHits = []; _localHits = []; _usdaCandidates = []; _searched = false; })),
                       ]),
               ),
             ],

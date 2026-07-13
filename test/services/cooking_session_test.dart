@@ -135,10 +135,14 @@ CookingSession makeSession({
   required AppDatabase db,
   PerHundred? chickenPer100,
   int? recipeId,
+  List<FoodMacros> cacheSeed = const [],
   Future<bool> Function(String food, double grams)? onAdjustIngredient,
   Future<void> Function()? onRecipeNutritionChanged,
 }) {
   final cache = FakeFoodCacheRepository();
+  for (final food in cacheSeed) {
+    cache.put(food);
+  }
   final logRepo = LogRepository(db);
   final targetRepo = TargetRepository(db);
   final llm = FakeLLMProvider();
@@ -262,6 +266,33 @@ void main() {
     expect(speech.spoken, isNotEmpty);
     // The confirmation should mention protein = 62
     expect(speech.lastSpoken, contains('62'));
+  });
+
+  test('spoken confirmation names the local-database source for a pack hit',
+      () async {
+    final speech = FakeSpeech();
+    const chickenPer100 = PerHundred(kcal: 165, protein: 31, carb: 0, fat: 3.6);
+
+    final session = makeSession(
+      steps: steps,
+      speech: speech,
+      db: db,
+      // A cached localDb food resolves directly (no retriever/network needed),
+      // exercising the same source that a real pack direct-hit produces.
+      cacheSeed: const [
+        FoodMacros(
+          name: 'chicken breast',
+          perHundred: chickenPer100,
+          source: MacroSource.localDb,
+          isEstimate: false,
+        ),
+      ],
+    );
+
+    await session.handleUtterance('200 grams of chicken breast');
+
+    expect(speech.lastSpoken, contains('62')); // still reports the macros
+    expect(speech.lastSpoken, contains('from the local database'));
   });
 
   test('adjustIngredient overrides the recipe ingredient and does NOT log',

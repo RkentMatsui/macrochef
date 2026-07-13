@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/chat.dart';
 import '../models/cooking_intent.dart';
+import '../models/macros.dart';
 import '../providers/llm/llm_provider.dart';
 import '../providers/speech/speech_provider.dart';
 import 'food_lookup.dart';
@@ -221,9 +222,28 @@ class CookingSession {
     state.value = SessionState.speaking;
     await speech.speak(
       'Logged ${grams.toStringAsFixed(0)}g of $foodName: '
-      '$kcal calories, $protein g protein, $carb g carbs, $fat g fat.',
+      '$kcal calories, $protein g protein, $carb g carbs, $fat g fat'
+      '${_sourceClause(foodMacros)}.',
     );
     state.value = SessionState.idle;
+  }
+
+  /// A short spoken clause naming where the macros came from, so a hands-free
+  /// cook knows whether the numbers are an exact database match or an estimate
+  /// without being able to see the on-screen source badge.
+  static String _sourceClause(FoodMacros food) {
+    switch (food.source) {
+      case MacroSource.localDb:
+        return ', from the local database';
+      case MacroSource.usda:
+        return ', from the USDA database';
+      case MacroSource.off:
+        return ', from Open Food Facts';
+      case MacroSource.manual:
+        return ', from your saved foods';
+      case MacroSource.ai:
+        return ', estimated';
+    }
   }
 
   Future<void> _handleDailyTotal() async {

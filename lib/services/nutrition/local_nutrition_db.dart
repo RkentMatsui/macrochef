@@ -48,17 +48,36 @@ class SqliteNutritionDb implements LocalNutritionDb {
 
   @override
   List<FoodRow> ftsPrefilter(String query, {int limit = 50}) {
-    // Match all tokens; escape quotes for the FTS query string.
-    final safe = query.replaceAll('"', ' ').trim();
-    if (safe.isEmpty) return const [];
+    // Build an AND of prefix terms — one per query word — so a multi-word
+    // query matches a food whose name contains ALL the words, ANYWHERE and in
+    // ANY order. Real USDA descriptions interleave descriptors ("Chicken,
+    // broilers or fryers, breast, meat only, cooked, roasted"), so the words of
+    // a natural query ("chicken breast") are almost never adjacent. A single
+    // phrase-prefix ('"chicken breast"*') requires adjacency and therefore
+    // returned nothing for essentially every real lookup.
+    //
+    // Each word is wrapped in double quotes so the FTS5 query parser treats it
+    // as a literal token (any embedded punctuation is neutralised by the
+    // tokenizer) rather than an operator; the trailing '*' makes it a prefix.
+    final terms = [
+      for (final word in query.split(RegExp(r'\s+')))
+        if (_ftsHasToken(word)) '"${word.replaceAll('"', '')}"*',
+    ];
+    if (terms.isEmpty) return const [];
     final rows = _db.select(
       'SELECT f.id,f.name,f.kcal,f.protein,f.carb,f.fat,f.fibre,f.sodium '
       'FROM foods_fts JOIN foods f ON f.id = foods_fts.rowid '
       'WHERE foods_fts MATCH ? ORDER BY rank LIMIT ?',
-      ['"$safe"*', limit],
+      [terms.join(' '), limit],
     );
     return [for (final row in rows) _toRow(row)];
   }
+
+  /// Whether [word] carries at least one character the FTS5 tokenizer keeps
+  /// (i.e. it is not pure whitespace/punctuation). A word of only punctuation
+  /// would tokenize to an empty phrase and make the MATCH query a syntax error.
+  static bool _ftsHasToken(String word) =>
+      word.contains(RegExp(r'[^\s!-/:-@\[-`{-~]'));
 
   FoodRow _toRow(Row row) => FoodRow(
     id: row['id'] as int,
