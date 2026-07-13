@@ -1014,31 +1014,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          const Center(
-            child: Column(
-              children: [
-                Text(
-                  'Scan to donate with InstaPay',
-                  style: TextStyle(
-                    color: AppColors.textHi,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.all(Radius.circular(16)),
-                  child: Image(
-                    image: AssetImage('assets/images/seabank-instapay-qr.png'),
-                    width: 240,
-                    height: 240,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -1063,6 +1038,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onPressed: _openKoFiDonation,
               icon: const Icon(PhosphorIconsBold.coffee),
               label: const Text('Ko-fi'),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Center(
+            child: Column(
+              children: [
+                Text(
+                  'Scan to donate with InstaPay',
+                  style: TextStyle(
+                    color: AppColors.textHi,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                  child: Image(
+                    image: AssetImage('assets/images/seabank-instapay-qr.png'),
+                    width: 240,
+                    height: 240,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

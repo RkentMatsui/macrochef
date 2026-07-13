@@ -106,6 +106,19 @@ void main() {
     expect(find.byType(Image), findsOneWidget);
   });
 
+  testWidgets('Support sheet shows every payment action without scrolling', (
+    tester,
+  ) async {
+    await pumpSettings(tester);
+
+    await openSupportSheet(tester);
+
+    expect(
+      tester.getBottomRight(find.text('Ko-fi')).dy,
+      lessThanOrEqualTo(600),
+    );
+  });
+
   testWidgets('PayPal donation uses the configured external URL', (
     tester,
   ) async {
