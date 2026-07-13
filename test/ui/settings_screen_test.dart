@@ -101,6 +101,8 @@ void main() {
     expect(find.text('Support MacroChef'), findsNWidgets(3));
     expect(find.text('Scan to donate with InstaPay'), findsOneWidget);
     expect(find.text('PayPal'), findsOneWidget);
+    expect(find.text('Wise'), findsOneWidget);
+    expect(find.text('Ko-fi'), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
   });
 
@@ -122,6 +124,46 @@ void main() {
 
     expect(launched, Uri.parse(kPayPalDonationUrl));
     expect(find.textContaining('Unable to open PayPal'), findsNothing);
+  });
+
+  testWidgets('Wise donation uses the configured external URL', (tester) async {
+    Uri? launched;
+    await pumpSettings(
+      tester,
+      urlLauncher: (url) async {
+        launched = url;
+        return true;
+      },
+    );
+
+    await openSupportSheet(tester);
+    await tester.ensureVisible(find.text('Wise'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Wise'));
+    await tester.pumpAndSettle();
+
+    expect(launched, Uri.parse(kWiseDonationUrl));
+  });
+
+  testWidgets('Ko-fi donation uses the configured external URL', (
+    tester,
+  ) async {
+    Uri? launched;
+    await pumpSettings(
+      tester,
+      urlLauncher: (url) async {
+        launched = url;
+        return true;
+      },
+    );
+
+    await openSupportSheet(tester);
+    await tester.ensureVisible(find.text('Ko-fi'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ko-fi'));
+    await tester.pumpAndSettle();
+
+    expect(launched, Uri.parse(kKoFiDonationUrl));
   });
 
   testWidgets('PayPal launch failure is shown to the user', (tester) async {

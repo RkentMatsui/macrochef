@@ -1,5 +1,5 @@
 # MacroChef
-[PayPal](https://www.paypal.me/RMatsui) · [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W3P222WBOK)
+[PayPal](https://www.paypal.me/RMatsui) · [Wise](https://wise.com/pay/me/rowielokentm) · [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W3P222WBOK)
 
 A Flutter app for macro/calorie tracking and strength training, with a
 voice-driven, hands-free **cooking** mode. The distinctive angle is recipes:

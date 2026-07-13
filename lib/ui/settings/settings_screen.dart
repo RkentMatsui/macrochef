@@ -49,6 +49,8 @@ import '../widgets/primary_button.dart';
 // ---------------------------------------------------------------------------
 
 const kPayPalDonationUrl = 'https://www.paypal.me/RMatsui';
+const kWiseDonationUrl = 'https://wise.com/pay/me/rowielokentm';
+const kKoFiDonationUrl = 'https://ko-fi.com/W3P222WBOK';
 
 typedef ExternalUrlLauncher = Future<bool> Function(Uri url);
 
@@ -962,16 +964,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _openPayPalDonation() async {
+    await _openDonationUrl(kPayPalDonationUrl, 'PayPal');
+  }
+
+  Future<void> _openWiseDonation() async {
+    await _openDonationUrl(kWiseDonationUrl, 'Wise');
+  }
+
+  Future<void> _openKoFiDonation() async {
+    await _openDonationUrl(kKoFiDonationUrl, 'Ko-fi');
+  }
+
+  Future<void> _openDonationUrl(String url, String providerName) async {
     var opened = false;
     try {
-      opened = await widget.urlLauncher(Uri.parse(kPayPalDonationUrl));
+      opened = await widget.urlLauncher(Uri.parse(url));
     } catch (_) {
       // A platform may reject an external launch instead of returning false.
     }
     if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to open PayPal. Please try again later.'),
+        SnackBar(
+          content: Text(
+            'Unable to open $providerName. Please try again later.',
+          ),
         ),
       );
     }
@@ -1029,6 +1045,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onPressed: _openPayPalDonation,
               icon: const Icon(PhosphorIconsBold.paypalLogo),
               label: const Text('PayPal'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _openWiseDonation,
+              icon: const Icon(PhosphorIconsBold.bank),
+              label: const Text('Wise'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _openKoFiDonation,
+              icon: const Icon(PhosphorIconsBold.coffee),
+              label: const Text('Ko-fi'),
             ),
           ),
         ],
