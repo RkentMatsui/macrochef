@@ -79,6 +79,23 @@ void main() {
     expect(find.text('Voice'), findsOneWidget);
   });
 
+  testWidgets('About sheet carries the required license attributions', (
+    tester,
+  ) async {
+    await pumpSettings(tester);
+    await tester.ensureVisible(find.text('About'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('About'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Privacy policy'), findsOneWidget);
+    expect(find.text('Open-source licenses'), findsOneWidget);
+    // Open Food Facts data is ODbL and the anatomy art is CC BY 4.0 — both
+    // legally require attribution that end users can actually see.
+    expect(find.textContaining('ODbL'), findsWidgets);
+    expect(find.textContaining('CC BY 4.0'), findsOneWidget);
+  });
+
   testWidgets('Food Data shows truthful Nutrition Pack readiness controls', (
     tester,
   ) async {

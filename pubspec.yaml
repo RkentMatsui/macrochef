@@ -66,6 +66,7 @@ dependencies:
   # Data backup: share the exported DB snapshot off-device, and pick one to import.
   share_plus: ^10.1.4
   file_picker: ^8.1.7
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   archive: 4.0.9

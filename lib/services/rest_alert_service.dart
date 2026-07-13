@@ -74,6 +74,17 @@ class RestAlertService {
     if (!_supported) return;
     await init();
     await cancelBackgroundAlert();
+    // Exact scheduling needs the user-grantable SCHEDULE_EXACT_ALARM on
+    // Android 14+ (the app never declares USE_EXACT_ALARM — Play policy reserves
+    // it for alarm-clock apps). When the grant is missing, fall back to inexact:
+    // the alert may land up to ~a minute late but never throws.
+    var scheduleMode = AndroidScheduleMode.exactAllowWhileIdle;
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android != null &&
+        !(await android.canScheduleExactNotifications() ?? true)) {
+      scheduleMode = AndroidScheduleMode.inexactAllowWhileIdle;
+    }
     // UTC instant + duration → correct absolute moment regardless of zone, so
     // we don't need the device's timezone location resolved.
     final when = tz.TZDateTime.now(tz.UTC).add(after);
@@ -99,7 +110,7 @@ class RestAlertService {
           interruptionLevel: InterruptionLevel.timeSensitive,
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: scheduleMode,
     );
   }
 

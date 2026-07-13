@@ -10,6 +10,9 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../app_links.dart';
 
 import '../../services/backup_service.dart';
 import '../../services/auto_backup.dart';
@@ -675,6 +678,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             'Backup & Restore',
             () => [_buildBackupSection(tt)],
           ),
+        ),
+        const SizedBox(height: 12),
+        _settingsTile(
+          icon: PhosphorIconsDuotone.info,
+          title: 'About',
+          subtitle: 'Licenses · privacy policy · credits',
+          color: AppColors.carb,
+          wide: true,
+          onTap: () =>
+              _openSettingsSheet('About', () => [_buildAboutSection(tt)]),
         ),
       ],
     );
@@ -1527,6 +1540,117 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           size: 18,
         ),
         onTap: _refreshFoodData,
+      ),
+    );
+  }
+
+  /// Best-effort external link; silently no-ops if no browser/mail app.
+  Future<void> _openLink(String url) async {
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {}
+  }
+
+  Widget _aboutLinkTile(
+    TextTheme tt, {
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: _leadingChip(icon, color),
+      title: Text(
+        title,
+        style: tt.bodyMedium?.copyWith(
+          color: AppColors.textHi,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: tt.bodySmall?.copyWith(color: AppColors.textMid),
+      ),
+      trailing: const Icon(
+        PhosphorIconsRegular.caretRight,
+        color: AppColors.textLow,
+        size: 18,
+      ),
+      onTap: onTap,
+    );
+  }
+
+  /// About: privacy policy, package licenses, and the attributions the app's
+  /// data/artwork licenses require (Open Food Facts is ODbL, the anatomy SVGs
+  /// are CC BY 4.0 — both need user-visible credit, not just a repo file).
+  Widget _buildAboutSection(TextTheme tt) {
+    return GlassPanel(
+      frosted: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(
+            PhosphorIconsRegular.info,
+            'About MacroChef',
+            AppColors.carb,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Voice-driven macro tracking and hands-free cooking.',
+            style: tt.bodySmall?.copyWith(color: AppColors.textMid),
+          ),
+          const SizedBox(height: 8),
+          _aboutLinkTile(
+            tt,
+            icon: PhosphorIconsRegular.shieldCheck,
+            color: AppColors.protein,
+            title: 'Privacy policy',
+            subtitle: 'How your data is handled (spoiler: it stays with you)',
+            onTap: () => _openLink(kPrivacyPolicyUrl),
+          ),
+          _aboutLinkTile(
+            tt,
+            icon: PhosphorIconsRegular.scroll,
+            color: AppColors.accent,
+            title: 'Open-source licenses',
+            subtitle: 'Licenses of the packages this app is built on',
+            onTap: () => showLicensePage(
+              context: context,
+              applicationName: 'MacroChef',
+            ),
+          ),
+          _aboutLinkTile(
+            tt,
+            icon: PhosphorIconsRegular.database,
+            color: AppColors.carb,
+            title: 'Open Food Facts',
+            subtitle: 'Some food data © Open Food Facts contributors (ODbL)',
+            onTap: () => _openLink(kOpenFoodFactsUrl),
+          ),
+          _aboutLinkTile(
+            tt,
+            icon: PhosphorIconsRegular.envelopeSimple,
+            color: AppColors.ember,
+            title: 'Contact & feedback',
+            subtitle: kSupportEmail,
+            onTap: () => _openLink('mailto:$kSupportEmail?subject=MacroChef'),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Credits\n'
+            '• Food data: USDA FoodData Central (public domain) and Open Food '
+            'Facts, licensed under the Open Database License (ODbL).\n'
+            '• Anatomy artwork: flutter-body-atlas by Kit G — artwork CC BY 4.0, '
+            'code BSD-3-Clause. Used unmodified.\n'
+            '• On-device speech: sherpa-onnx (Apache 2.0) running Whisper '
+            'base.en, Silero VAD and VITS-LJSpeech models.\n'
+            '• Recipes and food estimates can be AI-generated — always verify '
+            'nutrition-critical values.',
+            style: tt.bodySmall?.copyWith(color: AppColors.textMid, height: 1.5),
+          ),
+        ],
       ),
     );
   }

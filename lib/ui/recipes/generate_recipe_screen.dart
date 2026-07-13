@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../app_links.dart';
 import '../../models/macros.dart';
 import '../../models/recipe_preset.dart';
 import '../../services/recipe_generator_service.dart';
@@ -802,9 +804,37 @@ class _GenerateRecipeScreenState extends ConsumerState<GenerateRecipeScreen> {
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
+          const SizedBox(height: 4),
+          // Play GenAI policy: users must be able to report AI-generated
+          // content they find inappropriate. No backend, so route via email.
+          TextButton.icon(
+            onPressed: () => _reportRecipe(recipe.title),
+            icon: const Icon(PhosphorIconsRegular.flag,
+                color: AppColors.textLow, size: 16),
+            label: const Text(
+              'Report this AI-generated recipe',
+              style: TextStyle(color: AppColors.textLow, fontSize: 12),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  /// Opens the mail app with a pre-filled report. Best-effort: silently no-ops
+  /// if the device has no mail handler.
+  Future<void> _reportRecipe(String title) async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: kSupportEmail,
+      query: Uri(queryParameters: {
+        'subject': 'MacroChef: report AI-generated recipe',
+        'body': 'Recipe: $title\n\nWhat is wrong with it?\n',
+      }).query,
+    );
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
   }
 
   // ---------------------------------------------------------------------------

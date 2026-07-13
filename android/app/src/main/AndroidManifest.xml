@@ -9,18 +9,20 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- Rest-timer alerts (flutter_local_notifications): post the completion
          notification (Android 13+), vibrate, and fire it at the exact moment the
-         rest ends even when the app is backgrounded or the screen is off. -->
+         rest ends even when the app is backgrounded or the screen is off.
+         SCHEDULE_EXACT_ALARM is user-grantable (requested at runtime on 14+, with
+         an inexact fallback when denied). USE_EXACT_ALARM is deliberately NOT
+         declared — Play policy reserves it for alarm-clock/calendar apps. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Auto-backup writes an uninstall-surviving copy to public Downloads. On
          API 29+ this uses MediaStore (no permission); only 24–28 needs this. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
     <application
-        android:label="macrochef"
+        android:label="MacroChef"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

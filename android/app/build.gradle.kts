@@ -51,7 +51,9 @@ android {
         // flutter_gemma (on-device LLM / MediaPipe) requires minSdk 24;
         // flutter_secure_storage needs >=23, so 24 satisfies both.
         minSdk = 24
-        targetSdk = flutter.targetSdkVersion
+        // Play requires targeting API 36 from 31 Aug 2026; the pinned Flutter
+        // (3.32.8) still defaults to 35, so pin 36 explicitly here.
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
