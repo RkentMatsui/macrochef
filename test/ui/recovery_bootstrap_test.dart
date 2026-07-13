@@ -102,6 +102,34 @@ void main() {
     expect(fake.appBuildCount(), 0);
   });
 
+  testWidgets('file access request offers a start-fresh escape', (
+    tester,
+  ) async {
+    final fake = await pump(tester, RecoveryNeedsFileAccess(backup()));
+    expect(find.text('Backup access needed'), findsOneWidget);
+    await tester.tap(find.text('Start fresh'));
+    await tester.pumpAndSettle();
+    expect(fake.declineCalls, 1);
+    expect(fake.appBuildCount(), 1);
+  });
+
+  testWidgets('fresh install with no detected backup can start fresh', (
+    tester,
+  ) async {
+    final manual = SharedBackup(
+      id: '',
+      name: 'Select a MacroChef backup from Downloads/MacroChef',
+      addedAt: DateTime.fromMillisecondsSinceEpoch(0),
+    );
+    final fake = await pump(tester, RecoveryNeedsFileAccess(manual));
+    expect(find.text('Restore a backup?'), findsOneWidget);
+    expect(find.text('Select backup file'), findsOneWidget);
+    await tester.tap(find.text('Start fresh'));
+    await tester.pumpAndSettle();
+    expect(fake.declineCalls, 1);
+    expect(fake.appBuildCount(), 1);
+  });
+
   testWidgets('restore failure offers retry and continue actions', (
     tester,
   ) async {

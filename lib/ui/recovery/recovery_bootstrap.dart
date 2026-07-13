@@ -185,18 +185,30 @@ class _RecoveryBootstrapState extends State<RecoveryBootstrap> {
       );
     }
     if (preparation is RecoveryNeedsFileAccess) {
+      final manual = preparation.backup.id.isEmpty;
       return _RecoveryPage(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Backup access needed'),
+            Text(
+              manual ? 'Restore a backup?' : 'Backup access needed',
+              style: const TextStyle(fontSize: 24),
+            ),
             const SizedBox(height: 12),
-            Text(preparation.backup.name),
+            Text(
+              manual
+                  ? 'No MacroChef backup was found on this device. If you '
+                        'have a backup file, you can restore it — otherwise '
+                        'start fresh.'
+                  : preparation.backup.name,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 20),
             FilledButton(
               onPressed: () => _select(preparation),
               child: const Text('Select backup file'),
             ),
+            TextButton(onPressed: _decline, child: const Text('Start fresh')),
           ],
         ),
       );
