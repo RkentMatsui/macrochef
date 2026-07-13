@@ -48,6 +48,13 @@ import '../widgets/primary_button.dart';
 // SettingsScreen
 // ---------------------------------------------------------------------------
 
+const kPayPalDonationUrl = 'https://www.paypal.me/RMatsui';
+
+typedef ExternalUrlLauncher = Future<bool> Function(Uri url);
+
+Future<bool> _launchExternalUrl(Uri url) =>
+    launchUrl(url, mode: LaunchMode.externalApplication);
+
 abstract interface class SettingsRecoveryService {
   Future<SettingsRecoveryResult> recoverLatest();
 }
@@ -149,9 +156,14 @@ class DefaultSettingsRecoveryService implements SettingsRecoveryService {
 }
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key, this.recoveryService});
+  const SettingsScreen({
+    super.key,
+    this.recoveryService,
+    this.urlLauncher = _launchExternalUrl,
+  });
 
   final SettingsRecoveryService? recoveryService;
+  final ExternalUrlLauncher urlLauncher;
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -292,8 +304,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         await settings.get('local_nutrition_enabled') == 'true';
     NutritionPackState nutritionPackState;
     try {
-      nutritionPackState =
-          await ref.read(nutritionPackManagerProvider).resolveState();
+      nutritionPackState = await ref
+          .read(nutritionPackManagerProvider)
+          .resolveState();
     } on Object {
       // Resolving the on-disk pack state must never break the whole Settings
       // load (e.g. storage unavailable) — fall back to "not downloaded".
@@ -650,11 +663,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: 'On-device speech',
           color: AppColors.ember,
           wide: true,
-          onTap: () => _openSettingsSheet('Voice', () => [
-                _buildVoicePackSection(tt),
-                const SizedBox(height: 12),
-                _buildVoiceSection(tt),
-              ]),
+          onTap: () => _openSettingsSheet(
+            'Voice',
+            () => [
+              _buildVoicePackSection(tt),
+              const SizedBox(height: 12),
+              _buildVoiceSection(tt),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         _settingsTile(
@@ -677,6 +693,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onTap: () => _openSettingsSheet(
             'Backup & Restore',
             () => [_buildBackupSection(tt)],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _settingsTile(
+          icon: PhosphorIconsDuotone.heart,
+          title: 'Support MacroChef',
+          subtitle: 'Optional donation',
+          color: AppColors.ember,
+          wide: true,
+          onTap: () => _openSettingsSheet(
+            'Support MacroChef',
+            () => [_buildSupportSection(tt)],
           ),
         ),
         const SizedBox(height: 12),
@@ -930,6 +958,81 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Icon(icon, size: 18, color: accent),
+    );
+  }
+
+  Future<void> _openPayPalDonation() async {
+    var opened = false;
+    try {
+      opened = await widget.urlLauncher(Uri.parse(kPayPalDonationUrl));
+    } catch (_) {
+      // A platform may reject an external launch instead of returning false.
+    }
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to open PayPal. Please try again later.'),
+        ),
+      );
+    }
+  }
+
+  Widget _buildSupportSection(TextTheme tt) {
+    return GlassPanel(
+      frosted: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(
+            PhosphorIconsDuotone.heart,
+            'Support MacroChef',
+            AppColors.ember,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'If MacroChef helps your routine, an optional donation keeps the app growing.',
+            style: TextStyle(
+              color: AppColors.textMid,
+              fontSize: 13,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Center(
+            child: Column(
+              children: [
+                Text(
+                  'Scan to donate with InstaPay',
+                  style: TextStyle(
+                    color: AppColors.textHi,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                  child: Image(
+                    image: AssetImage('assets/images/seabank-instapay-qr.png'),
+                    width: 240,
+                    height: 240,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _openPayPalDonation,
+              icon: const Icon(PhosphorIconsBold.paypalLogo),
+              label: const Text('PayPal'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1272,12 +1375,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _setLocalNutritionEnabled(bool enabled) async {
-    await ref.read(settingsRepositoryProvider)
+    await ref
+        .read(settingsRepositoryProvider)
         .set('local_nutrition_enabled', enabled.toString());
     if (!mounted) return;
     setState(() => _localNutritionEnabled = enabled);
     _invalidateNutritionLookup();
-    _notifySaved(enabled ? 'Local nutrition enabled' : 'Local nutrition disabled');
+    _notifySaved(
+      enabled ? 'Local nutrition enabled' : 'Local nutrition disabled',
+    );
   }
 
   Future<void> _downloadNutritionPack() async {
@@ -1288,9 +1394,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _nutritionPackError = null;
     });
     try {
-      await manager.download(onProgress: (value) {
-        if (mounted) setState(() => _nutritionPackProgress = value);
-      });
+      await manager.download(
+        onProgress: (value) {
+          if (mounted) setState(() => _nutritionPackProgress = value);
+        },
+      );
       final state = await manager.resolveState();
       if (!mounted) return;
       setState(() => _nutritionPackState = state);
@@ -1303,10 +1411,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _nutritionPackState = state;
         _nutritionPackError = error is NutritionPackUnavailableException
             ? 'The Nutrition Pack is not published yet. Update MacroChef after '
-                'the pack release, then download it here.'
+                  'the pack release, then download it here.'
             : 'Download stopped. Check your connection, then tap Download to '
-                'restart the three-file download. Staged files stay isolated '
-                'from the installed pack.';
+                  'restart the three-file download. Staged files stay isolated '
+                  'from the installed pack.';
       });
     } finally {
       if (mounted) {
@@ -1321,7 +1429,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _deleteNutritionPack() async {
     try {
       await ref.read(nutritionPackManagerProvider).delete();
-      await ref.read(settingsRepositoryProvider)
+      await ref
+          .read(settingsRepositoryProvider)
           .set('local_nutrition_enabled', 'false');
       if (!mounted) return;
       setState(() {
@@ -1333,8 +1442,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _notifySaved('Nutrition Pack deleted');
     } on Object {
       if (mounted) {
-        setState(() => _nutritionPackError =
-            'Could not delete the pack. Close active food searches and try again.');
+        setState(
+          () => _nutritionPackError =
+              'Could not delete the pack. Close active food searches and try again.',
+        );
       }
     }
   }
@@ -1352,73 +1463,105 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         'Generic USDA foods and MiniLM search are stored on this device.',
       NutritionPackState.partial =>
         'Tap Download to safely replace the incomplete files.',
-      NutritionPackState.notDownloaded => manager.canDownload
-          ? 'Download generic USDA foods and MiniLM search for on-device lookup.'
-          : 'Pack publishing is pending. Online USDA, OpenFoodFacts, and your AI provider still work.',
+      NutritionPackState.notDownloaded =>
+        manager.canDownload
+            ? 'Download generic USDA foods and MiniLM search for on-device lookup.'
+            : 'Pack publishing is pending. Online USDA, OpenFoodFacts, and your AI provider still work.',
     };
     return GlassPanel(
       frosted: false,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _sectionHeader(PhosphorIconsRegular.database,
-            'Nutrition Pack', AppColors.carb),
-        const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceHigh,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: downloaded ? AppColors.carb : AppColors.line),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(
+            PhosphorIconsRegular.database,
+            'Nutrition Pack',
+            AppColors.carb,
           ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(status, style: tt.titleSmall?.copyWith(
-              color: downloaded ? AppColors.carb : AppColors.textHi,
-              fontWeight: FontWeight.w700,
-            )),
-            const SizedBox(height: 4),
-            Text(detail, style: tt.bodySmall?.copyWith(color: AppColors.textMid)),
-          ]),
-        ),
-        if (_nutritionPackBusy) ...[
           const SizedBox(height: 12),
-          LinearProgressIndicator(value: _nutritionPackProgress),
-          const SizedBox(height: 6),
-          Text('${((_nutritionPackProgress ?? 0) * 100).toStringAsFixed(0)}% · '
-              'Keep MacroChef open until all three files finish.',
-              style: tt.bodySmall?.copyWith(color: AppColors.textMid)),
-        ],
-        if (_nutritionPackError != null) ...[
-          const SizedBox(height: 10),
-          Text(_nutritionPackError!,
-              style: tt.bodySmall?.copyWith(color: AppColors.danger)),
-        ],
-        const SizedBox(height: 10),
-        Row(children: [
-          FilledButton(
-            onPressed: _nutritionPackBusy || downloaded || !manager.canDownload
-                ? null : _downloadNutritionPack,
-            child: Text(_nutritionPackState == NutritionPackState.partial
-                ? 'Download again' : 'Download'),
-          ),
-          const SizedBox(width: 10),
-          if (_nutritionPackState != NutritionPackState.notDownloaded)
-            OutlinedButton(
-              onPressed: _nutritionPackBusy ? null : _deleteNutritionPack,
-              child: const Text('Delete pack'),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceHigh,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: downloaded ? AppColors.carb : AppColors.line,
+              ),
             ),
-        ]),
-        const SizedBox(height: 8),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Use local nutrition first'),
-          subtitle: const Text(
-              'When ready, food searches use this device before online services.'),
-          value: _localNutritionEnabled,
-          onChanged: downloaded ? _setLocalNutritionEnabled : null,
-        ),
-        Text('Data source: USDA FoodData Central · Foundation and SR Legacy.',
-            style: tt.bodySmall?.copyWith(color: AppColors.textLow)),
-      ]),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  status,
+                  style: tt.titleSmall?.copyWith(
+                    color: downloaded ? AppColors.carb : AppColors.textHi,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  detail,
+                  style: tt.bodySmall?.copyWith(color: AppColors.textMid),
+                ),
+              ],
+            ),
+          ),
+          if (_nutritionPackBusy) ...[
+            const SizedBox(height: 12),
+            LinearProgressIndicator(value: _nutritionPackProgress),
+            const SizedBox(height: 6),
+            Text(
+              '${((_nutritionPackProgress ?? 0) * 100).toStringAsFixed(0)}% · '
+              'Keep MacroChef open until all three files finish.',
+              style: tt.bodySmall?.copyWith(color: AppColors.textMid),
+            ),
+          ],
+          if (_nutritionPackError != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _nutritionPackError!,
+              style: tt.bodySmall?.copyWith(color: AppColors.danger),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              FilledButton(
+                onPressed:
+                    _nutritionPackBusy || downloaded || !manager.canDownload
+                    ? null
+                    : _downloadNutritionPack,
+                child: Text(
+                  _nutritionPackState == NutritionPackState.partial
+                      ? 'Download again'
+                      : 'Download',
+                ),
+              ),
+              const SizedBox(width: 10),
+              if (_nutritionPackState != NutritionPackState.notDownloaded)
+                OutlinedButton(
+                  onPressed: _nutritionPackBusy ? null : _deleteNutritionPack,
+                  child: const Text('Delete pack'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Use local nutrition first'),
+            subtitle: const Text(
+              'When ready, food searches use this device before online services.',
+            ),
+            value: _localNutritionEnabled,
+            onChanged: downloaded ? _setLocalNutritionEnabled : null,
+          ),
+          Text(
+            'Data source: USDA FoodData Central · Foundation and SR Legacy.',
+            style: tt.bodySmall?.copyWith(color: AppColors.textLow),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1616,10 +1759,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: AppColors.accent,
             title: 'Open-source licenses',
             subtitle: 'Licenses of the packages this app is built on',
-            onTap: () => showLicensePage(
-              context: context,
-              applicationName: 'MacroChef',
-            ),
+            onTap: () =>
+                showLicensePage(context: context, applicationName: 'MacroChef'),
           ),
           _aboutLinkTile(
             tt,
@@ -1648,7 +1789,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             'base.en, Silero VAD and VITS-LJSpeech models.\n'
             '• Recipes and food estimates can be AI-generated — always verify '
             'nutrition-critical values.',
-            style: tt.bodySmall?.copyWith(color: AppColors.textMid, height: 1.5),
+            style: tt.bodySmall?.copyWith(
+              color: AppColors.textMid,
+              height: 1.5,
+            ),
           ),
         ],
       ),
@@ -2682,15 +2826,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _voiceProgress = 0);
     try {
       var lastPct = -1;
-      await mgr.download(onProgress: (prog) {
-        if (!mounted) return;
-        // A 266 MB stream fires thousands of chunk callbacks — rebuild only when
-        // the whole-percent figure actually changes.
-        final pct = (prog * 100).floor();
-        if (pct == lastPct) return;
-        lastPct = pct;
-        setState(() => _voiceProgress = prog);
-      });
+      await mgr.download(
+        onProgress: (prog) {
+          if (!mounted) return;
+          // A 266 MB stream fires thousands of chunk callbacks — rebuild only when
+          // the whole-percent figure actually changes.
+          final pct = (prog * 100).floor();
+          if (pct == lastPct) return;
+          lastPct = pct;
+          setState(() => _voiceProgress = prog);
+        },
+      );
       _notifySaved('Voice pack downloaded ✓');
     } catch (e) {
       // Leave any partial files so a retry resumes via the size check.
@@ -2722,11 +2868,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader(PhosphorIconsRegular.downloadSimple, 'Voice Pack',
-              AppColors.ember),
+          _sectionHeader(
+            PhosphorIconsRegular.downloadSimple,
+            'Voice Pack',
+            AppColors.ember,
+          ),
           const SizedBox(height: 6),
-          Text('~266 MB · required for hands-free cooking',
-              style: tt.bodySmall?.copyWith(color: AppColors.textLow)),
+          Text(
+            '~266 MB · required for hands-free cooking',
+            style: tt.bodySmall?.copyWith(color: AppColors.textLow),
+          ),
           const SizedBox(height: 12),
           FutureBuilder<VoiceState>(
             future: _voiceStateFuture,
@@ -2753,9 +2904,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             : AppColors.textLow,
                       ),
                       const SizedBox(width: 6),
-                      Text(label,
-                          style: const TextStyle(
-                              color: AppColors.textMid, fontSize: 12)),
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: AppColors.textMid,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -2769,7 +2924,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           '${((_voiceProgress ?? 0) * 100).toStringAsFixed(0)}%'
                           ' · keep this screen open',
                           style: const TextStyle(
-                              color: AppColors.textMid, fontSize: 12),
+                            color: AppColors.textMid,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     )
@@ -2792,14 +2949,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               foregroundColor: AppColors.danger,
                               side: const BorderSide(color: AppColors.danger),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 14),
+                                horizontal: 20,
+                                vertical: 14,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(28),
                               ),
                             ),
-                            child: const Text('Delete',
-                                style:
-                                    TextStyle(fontWeight: FontWeight.w600)),
+                            child: const Text(
+                              'Delete',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
                           ),
                       ],
                     ),

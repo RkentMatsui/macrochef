@@ -1,4 +1,5 @@
 # MacroChef
+[PayPal](https://www.paypal.me/RMatsui) · [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W3P222WBOK)
 
 A Flutter app for macro/calorie tracking and strength training, with a
 voice-driven, hands-free **cooking** mode. The distinctive angle is recipes:
@@ -11,6 +12,39 @@ Primary target platform is **Android** (on-device voice is mobile-only);
 desktop and test runs fall back to no-op speech stubs. AI can run either against
 a cloud provider (with your API key) or **fully on-device** with a downloadable
 model — recipe generation, macro estimates, and voice all work offline.
+
+## Quick start: two free API keys (~5 minutes)
+
+MacroChef works best with two keys, **both free** — no credit card required.
+Keys are entered in-app and stored on your device only (the LLM key in the OS
+keychain via secure storage).
+
+### 1. Groq — free AI provider (recipes, macro estimates, voice intents)
+
+Groq's free tier is the fastest way to get the AI features running:
+
+1. Sign up at <https://console.groq.com> (free account).
+2. Go to **API Keys** → **Create API Key** and copy the key (shown once).
+3. In MacroChef: **Settings → AI Provider** → set the provider dropdown to
+   **Groq** → paste the key under **API Key** → **Save key**.
+4. Tap **Test connection** to confirm it works.
+
+Prefer another provider? Claude, OpenAI, and Gemini work the same way (paid
+keys), or pick **Local** to download an on-device model and skip API keys
+entirely — see [Choosing an AI provider](#choosing-an-ai-provider).
+
+### 2. USDA FoodData Central — free food database (accurate macros)
+
+The USDA database is the app's first and most accurate source for food macros:
+
+1. Request a key at <https://fdc.nal.usda.gov/api-key-signup> — instant,
+   free, arrives by email.
+2. In MacroChef: **Settings → Food Data** → paste it under **USDA API Key** →
+   **Save USDA key**.
+
+Without a USDA key the app still works — lookups fall back to OpenFoodFacts
+and AI estimates — but generic whole foods (chicken breast, rice, oats…)
+resolve far more accurately with it.
 
 ## Features
 
@@ -58,6 +92,9 @@ The app shell (`lib/app.dart`) has four tabs — **Train**, **Recipes**,
 flutter pub get                              # install deps
 flutter run                                  # run on attached device/emulator
 ```
+
+Then grab the two free API keys (Groq + USDA) — see
+[Quick start](#quick-start-two-free-api-keys-5-minutes) above.
 
 On-device voice models are **not** committed to git. Fetch them before a device
 run that uses voice:
@@ -357,3 +394,5 @@ for logic.
 
 See [`CLAUDE.md`](CLAUDE.md) for the full developer guide and environment
 gotchas (e.g. don't override `NO_PROXY`; `fl_chart` and `drift` are pinned).
+
+Optional support: [PayPal](https://www.paypal.me/RMatsui).

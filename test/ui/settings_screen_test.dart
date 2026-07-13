@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macrochef/data/database.dart';
 import 'package:macrochef/state/providers.dart';
@@ -40,6 +41,7 @@ void main() {
     WidgetTester tester, {
     SettingsRecoveryService? recoveryService,
     NutritionPackState packState = NutritionPackState.notDownloaded,
+    Future<bool> Function(Uri)? urlLauncher,
   }) async {
     FlutterSecureStorage.setMockInitialValues({});
     final db = AppDatabase(NativeDatabase.memory());
@@ -54,7 +56,12 @@ void main() {
           ),
         ],
         child: MaterialApp(
-          home: SettingsScreen(recoveryService: recoveryService),
+          home: urlLauncher == null
+              ? SettingsScreen(recoveryService: recoveryService)
+              : SettingsScreen(
+                  recoveryService: recoveryService,
+                  urlLauncher: urlLauncher,
+                ),
         ),
       ),
     );
@@ -68,6 +75,13 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> openSupportSheet(WidgetTester tester) async {
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Support MacroChef'));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('SettingsScreen renders the hero + category tiles', (
     tester,
   ) async {
@@ -77,6 +91,66 @@ void main() {
     expect(find.text('Targets & Body'), findsOneWidget);
     expect(find.text('AI Provider'), findsOneWidget);
     expect(find.text('Voice'), findsOneWidget);
+  });
+
+  testWidgets('Support MacroChef opens its donation sheet', (tester) async {
+    await pumpSettings(tester);
+
+    await openSupportSheet(tester);
+
+    expect(find.text('Support MacroChef'), findsNWidgets(3));
+    expect(find.text('Scan to donate with InstaPay'), findsOneWidget);
+    expect(find.text('PayPal'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
+  });
+
+  testWidgets('PayPal donation uses the configured external URL', (
+    tester,
+  ) async {
+    Uri? launched;
+    await pumpSettings(
+      tester,
+      urlLauncher: (url) async {
+        launched = url;
+        return true;
+      },
+    );
+
+    await openSupportSheet(tester);
+    await tester.tap(find.text('PayPal'));
+    await tester.pumpAndSettle();
+
+    expect(launched, Uri.parse(kPayPalDonationUrl));
+    expect(find.textContaining('Unable to open PayPal'), findsNothing);
+  });
+
+  testWidgets('PayPal launch failure is shown to the user', (tester) async {
+    await pumpSettings(tester, urlLauncher: (_) async => false);
+
+    await openSupportSheet(tester);
+    await tester.tap(find.text('PayPal'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Unable to open PayPal. Please try again later.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('PayPal launch exception is shown to the user', (tester) async {
+    await pumpSettings(
+      tester,
+      urlLauncher: (_) async => throw PlatformException(code: 'unavailable'),
+    );
+
+    await openSupportSheet(tester);
+    await tester.tap(find.text('PayPal'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Unable to open PayPal. Please try again later.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('About sheet carries the required license attributions', (
