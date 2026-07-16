@@ -29,6 +29,7 @@ import '../../providers/llm/local/local_models.dart';
 import '../../providers/llm/local/local_download_controller.dart';
 import '../../providers/speech/voice_model_files.dart' show VoiceState;
 import '../../services/adaptive_macro_service.dart';
+import '../../services/adaptive_target_coordinator.dart';
 import '../../services/nutrition/nutrition_pack_manager.dart';
 import '../../services/training_service.dart'
     show kTrainingRestSecKey, kDefaultRestSec;
@@ -226,7 +227,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final TextEditingController _goalRateCtrl = TextEditingController();
   final TextEditingController _goalWeightCtrl = TextEditingController();
   double? _currentTrendKg; // latest trend weight (kg) — the adaptive anchor
-  DailyTarget? _adaptiveResult;
+  AdaptiveResult? _adaptiveResult;
+  AdaptiveTargetRecord? _adaptiveAudit;
+  DailyTarget? _currentEffectiveTarget;
+  String? _adaptiveLastAttempted;
+  String? _adaptiveLastSuccessful;
+  String? _adaptiveLastOutcome;
   bool _adaptiveRunning = false;
   bool _adaptiveComputed = false; // true once recompute() has actually run
 
@@ -321,6 +327,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final adaptiveEnabled = await settings.get(kAdaptiveEnabled);
     final adaptiveGoal = await settings.get(kGoalType);
     final adaptiveRate = await settings.get(kGoalRateKgPerWeek);
+    final adaptiveLastAttempted = await settings.get(
+      kAdaptiveLastAttemptedDate,
+    );
+    final adaptiveLastSuccessful = await settings.get(
+      kAdaptiveLastSuccessfulDate,
+    );
+    final adaptiveLastOutcome = await settings.get(kAdaptiveLastOutcome);
+    final adaptiveAudit = await targets.latestAdaptive();
 
     final kind = LlmKind.values.firstWhere(
       (e) => e.name == kindStr,
@@ -360,6 +374,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ? dailyTarget.fat.toStringAsFixed(0)
               : '';
         }
+        _currentEffectiveTarget = dailyTarget;
+        _adaptiveAudit = adaptiveAudit;
+        _adaptiveLastAttempted = adaptiveLastAttempted;
+        _adaptiveLastSuccessful = adaptiveLastSuccessful;
+        _adaptiveLastOutcome = adaptiveLastOutcome;
         _fibreTargetCtrl.text = fibreTarget ?? '';
         _weightUnit = weightUnit ?? 'kg';
         _restSecCtrl.text = restSec ?? '$kDefaultRestSec';
@@ -1846,9 +1865,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Your data lives only on this phone. Export a backup to Drive or '
-            'Files so it survives a reinstall or a new device, and import it to '
-            'restore.',
+            'Save a copy to Downloads for a local safety net, or share one to '
+            'Drive or Files for an offsite copy that survives a new device.',
             style: tt.bodySmall?.copyWith(
               color: AppColors.textMid,
               height: 1.4,
@@ -1905,14 +1923,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               AppColors.protein,
             ),
             title: Text(
-              'Export backup',
+              'Save backup to phone',
               style: tt.bodyMedium?.copyWith(
                 color: AppColors.textHi,
                 fontWeight: FontWeight.w600,
               ),
             ),
             subtitle: Text(
-              'Save a snapshot of all your data.',
+              'Save a snapshot in Downloads/MacroChef.',
               style: tt.bodySmall?.copyWith(color: AppColors.textMid),
             ),
             trailing: _backupBusy
@@ -1929,7 +1947,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     color: AppColors.textLow,
                     size: 18,
                   ),
-            onTap: _backupBusy ? null : _exportBackup,
+            onTap: _backupBusy ? null : _saveBackupToPhone,
+          ),
+          const Divider(color: AppColors.line, height: 1),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: _leadingChip(
+              PhosphorIconsRegular.shareNetwork,
+              AppColors.protein,
+            ),
+            title: Text(
+              'Share backup',
+              style: tt.bodyMedium?.copyWith(
+                color: AppColors.textHi,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            subtitle: Text(
+              'Send a snapshot to Drive, Files, or another destination.',
+              style: tt.bodySmall?.copyWith(color: AppColors.textMid),
+            ),
+            trailing: _backupBusy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.accent,
+                    ),
+                  )
+                : const Icon(
+                    PhosphorIconsRegular.caretRight,
+                    color: AppColors.textLow,
+                    size: 18,
+                  ),
+            onTap: _backupBusy ? null : _shareBackup,
           ),
           const Divider(color: AppColors.line, height: 1),
           ListTile(
@@ -2071,14 +2123,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ),
   );
 
-  /// Export the whole database as a shareable `.sqlite` snapshot.
-  Future<void> _exportBackup() async {
+  /// Publish a user-requested snapshot to public Downloads on the device.
+  Future<void> _saveBackupToPhone() async {
+    setState(() => _backupBusy = true);
+    try {
+      final backup = ref.read(backupServiceProvider);
+      final result = await ManualBackupPublisher(
+        exportSnapshot: backup.exportTo,
+        sharedStorage: ref.read(sharedStorageProvider),
+        temporaryDirectory: getTemporaryDirectory,
+      ).save(DateTime.now());
+      if (mounted) {
+        _notifySaved('Saved ${result.fileName} to Downloads/MacroChef.');
+      }
+    } catch (e) {
+      _notifySaved('Save to phone failed: $e');
+    } finally {
+      if (mounted) setState(() => _backupBusy = false);
+    }
+  }
+
+  /// Export the whole database as a shareable temporary `.sqlite` snapshot.
+  Future<void> _shareBackup() async {
     setState(() => _backupBusy = true);
     try {
       final backup = ref.read(backupServiceProvider);
       final tmp = await getTemporaryDirectory();
       final dest = File(
-        p.join(tmp.path, BackupService.suggestedFileName(DateTime.now())),
+        p.join(tmp.path, BackupService.manualFileName(DateTime.now())),
       );
       await backup.exportTo(dest);
       await Share.shareXFiles(
@@ -2086,16 +2158,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         subject: 'MacroChef backup',
         text: 'MacroChef data backup — keep this file to restore your data.',
       );
-      // Record the offsite backup so the "backup is stale" reminder resets.
-      await ref
-          .read(settingsRepositoryProvider)
-          .set(
-            kLastDriveBackupMsKey,
-            DateTime.now().millisecondsSinceEpoch.toString(),
-          );
-      if (mounted) setState(() {}); // refresh the reminder banner
     } catch (e) {
-      _notifySaved('Export failed: $e');
+      _notifySaved('Share failed: $e');
     } finally {
       if (mounted) setState(() => _backupBusy = false);
     }
@@ -2628,20 +2692,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     });
                     try {
                       final result = await ref
-                          .read(adaptiveMacroServiceProvider)
-                          .recompute();
+                          .read(adaptiveTargetCoordinatorProvider)
+                          .runIfDue(DateTime.now(), force: true);
                       if (mounted) {
                         setState(() {
                           _adaptiveRunning = false;
                           _adaptiveResult = result;
                           _adaptiveComputed = true;
                         });
-                        if (result != null) {
+                        if (result is AdaptiveApplied) {
                           // Refresh displayed targets
-                          _kcalCtrl.text = result.kcal.toStringAsFixed(0);
-                          _proteinCtrl.text = result.protein.toStringAsFixed(0);
-                          _carbCtrl.text = result.carb.toStringAsFixed(0);
-                          _fatCtrl.text = result.fat.toStringAsFixed(0);
+                          _adaptiveAudit = result.record;
+                          _adaptiveLastAttempted = todayDate();
+                          _adaptiveLastSuccessful = todayDate();
+                          _adaptiveLastOutcome =
+                              'Applied ${result.target.kcal.toStringAsFixed(0)} kcal; effective ${result.record.effectiveFrom}.';
+                          _currentEffectiveTarget = result.target;
+                          _kcalCtrl.text = result.target.kcal.toStringAsFixed(
+                            0,
+                          );
+                          _proteinCtrl.text = result.target.protein
+                              .toStringAsFixed(0);
+                          _carbCtrl.text = result.target.carb.toStringAsFixed(
+                            0,
+                          );
+                          _fatCtrl.text = result.target.fat.toStringAsFixed(0);
                         }
                       }
                     } catch (e) {
@@ -2673,20 +2748,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
           if (!_adaptiveRunning && _adaptiveResult != null) ...[
             const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(
-                  PhosphorIconsRegular.checkCircle,
-                  size: 16,
-                  color: AppColors.protein,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'New target: ${_adaptiveResult!.kcal.toStringAsFixed(0)} kcal',
-                  style: const TextStyle(color: AppColors.textHi),
-                ),
-              ],
-            ),
+            _adaptiveOutcomeText(tt),
           ],
           // Only after an actual recompute that returned null — not on first
           // load before the user has ever pressed "Recalculate now".
@@ -2696,13 +2758,95 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _adaptiveEnabled) ...[
             const SizedBox(height: 8),
             Text(
-              'Not enough data yet (need 7+ weight entries and food logs).',
+              'No adaptive calculation result is available yet.',
               style: tt.bodySmall?.copyWith(color: AppColors.textLow),
             ),
           ],
+          const SizedBox(height: 14),
+          _adaptiveAuditSummary(tt),
         ],
       ),
     );
+  }
+
+  Widget _adaptiveOutcomeText(TextTheme tt) {
+    final result = _adaptiveResult!;
+    final text = switch (result) {
+      AdaptiveApplied(:final record) =>
+        'New ${record.effectiveFrom} target: ${record.target.kcal.toStringAsFixed(0)} kcal.',
+      AdaptiveNotDue(:final nextEligibleDate) =>
+        'Not due. Next eligible calculation: $nextEligibleDate.',
+      AdaptiveDisabled() => 'Adaptive recalculation is disabled.',
+      AdaptiveInsufficientData(:final reason) => reason,
+      AdaptiveFailed(:final reason) => 'Could not recalculate: $reason',
+    };
+    final color = result is AdaptiveFailed ? AppColors.carb : AppColors.textHi;
+    return Text(text, style: tt.bodySmall?.copyWith(color: color));
+  }
+
+  Widget _adaptiveAuditSummary(TextTheme tt) {
+    final target = _currentEffectiveTarget;
+    final audit = _adaptiveAudit;
+    final rows = <String>[
+      if (target != null)
+        'Current effective target: ${target.kcal.toStringAsFixed(0)} kcal',
+      'Last attempted calculation: ${_adaptiveLastAttempted ?? 'Not yet'}',
+      'Last successful calculation: ${_adaptiveLastSuccessful ?? 'Not yet'}',
+      'Next eligible calculation: ${_nextEligibleAdaptiveDate() ?? 'Enable adaptive recalculation'}',
+      if (_adaptiveLastOutcome != null)
+        'Last check result: $_adaptiveLastOutcome',
+      if (audit != null) ...[
+        'Target effective from: ${audit.effectiveFrom}',
+        'Calculated through: ${audit.calculatedThrough}',
+        'Observation window: ${audit.windowStart} to ${audit.calculatedThrough}',
+        'Qualified intake days: ${audit.qualifiedIntakeDays}',
+        'Weigh-ins: ${audit.weightObservationCount}',
+        'Estimated maintenance: ${audit.estimatedMaintenanceKcal.toStringAsFixed(0)} kcal',
+        'Adjustment applied: ${audit.appliedAdjustmentKcal >= 0 ? '+' : ''}${audit.appliedAdjustmentKcal.toStringAsFixed(0)} kcal',
+      ],
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Adaptive status',
+          style: tt.labelLarge?.copyWith(color: AppColors.ember),
+        ),
+        const SizedBox(height: 6),
+        ...rows.map(
+          (row) => Padding(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: Text(
+              row,
+              style: tt.bodySmall?.copyWith(color: AppColors.textLow),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Automatic results normally begin tomorrow and never change past days.',
+          style: tt.bodySmall?.copyWith(color: AppColors.textLow),
+        ),
+      ],
+    );
+  }
+
+  String? _nextEligibleAdaptiveDate() {
+    if (!_adaptiveEnabled) return null;
+    final attempted = _adaptiveLastAttempted;
+    if (attempted == null) return 'Now';
+    final parts = attempted.split('-');
+    if (parts.length != 3) return 'Now';
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[2]);
+    if (year == null || month == null || day == null) return 'Now';
+    final next = DateTime(
+      year,
+      month,
+      day,
+    ).add(const Duration(days: kAdaptiveRecalculationIntervalDays));
+    return '${next.year.toString().padLeft(4, '0')}-${next.month.toString().padLeft(2, '0')}-${next.day.toString().padLeft(2, '0')}';
   }
 
   Future<void> _addBlacklistItem() async {

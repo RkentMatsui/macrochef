@@ -29,6 +29,8 @@ import '../providers/speech/voice_model_manager.dart';
 import '../services/food_db/open_food_facts_client.dart';
 import '../services/food_db/usda_client.dart';
 import '../services/food_lookup.dart';
+import '../services/food_web_grounder.dart';
+import '../services/llm_food_web_grounder.dart';
 import '../services/nutrition/local_nutrition_db.dart';
 import '../services/nutrition/nutrition_pack_manager.dart';
 import '../services/nutrition/nutrition_retriever.dart';
@@ -39,9 +41,11 @@ import '../services/workout_intent_parser.dart';
 import '../services/recipe_generator_service.dart';
 import '../services/recipe_service.dart';
 import '../services/daily_log_service.dart';
+import '../services/custom_food_service.dart';
 import '../services/recipe_nutrition_service.dart';
 import '../services/weight_service.dart';
 import '../services/adaptive_macro_service.dart';
+import '../services/adaptive_target_coordinator.dart';
 import '../services/training_service.dart';
 import '../services/schedule_service.dart';
 import '../services/progression_service.dart';
@@ -231,7 +235,8 @@ Future<bool> checkAiReady(WidgetRef ref) async {
       localModelReady: state == LocalModelState.downloaded,
     );
   }
-  final key = (await secure.read(key: 'llm_api_key_${kind.name}')) ??
+  final key =
+      (await secure.read(key: 'llm_api_key_${kind.name}')) ??
       (await secure.read(key: 'llm_api_key'));
   return aiProviderReady(
     kind: kind,
@@ -254,8 +259,9 @@ final nutritionPackStateProvider = FutureProvider<NutritionPackState>((ref) {
 
 /// Null means local nutrition is unavailable, invalid, or disabled. Every pack
 /// setup failure degrades to the existing USDA/OFF/AI lookup path.
-final nutritionRetrieverProvider =
-    FutureProvider<NutritionRetriever?>((ref) async {
+final nutritionRetrieverProvider = FutureProvider<NutritionRetriever?>((
+  ref,
+) async {
   SqliteNutritionDb? db;
   OnnxMiniLmEmbedder? embedder;
   try {
@@ -287,12 +293,19 @@ final nutritionRetrieverProvider =
   }
 });
 
+/// Provider-native cited web search used only after all structured food
+/// sources miss. Unsupported providers simply return no grounded result.
+final foodWebGrounderProvider = FutureProvider<FoodWebGrounder>((ref) async {
+  return LlmFoodWebGrounder(llm: await ref.watch(llmProvider.future));
+});
+
 final foodLookupProvider = FutureProvider<FoodLookup>((ref) async {
   final llm = await ref.watch(llmProvider.future);
   final cache = ref.watch(foodCacheRepositoryProvider);
   final settings = ref.watch(settingsRepositoryProvider);
   final usdaKey = await settings.get('usda_api_key');
   final retriever = await ref.watch(nutritionRetrieverProvider.future);
+  final webGrounder = await ref.watch(foodWebGrounderProvider.future);
 
   return FoodLookup(
     cache: cache,
@@ -301,6 +314,7 @@ final foodLookupProvider = FutureProvider<FoodLookup>((ref) async {
     llm: llm,
     usdaKey: usdaKey,
     nutritionRetriever: retriever,
+    webGrounder: webGrounder,
   );
 });
 
@@ -324,6 +338,7 @@ final dailyLogServiceProvider = Provider<DailyLogService>((ref) {
   return DailyLogService(
     logs: ref.watch(logRepositoryProvider),
     targets: ref.watch(targetRepositoryProvider),
+    customFoods: ref.watch(customFoodServiceProvider),
   );
 });
 
@@ -340,6 +355,23 @@ final adaptiveMacroServiceProvider = Provider<AdaptiveMacroService>((ref) {
     targets: ref.watch(targetRepositoryProvider),
     settings: ref.watch(settingsRepositoryProvider),
     weightService: ref.watch(weightServiceProvider),
+  );
+});
+
+/// The single persistence path for remembered manual, edited, and grounded
+/// foods. It keeps the authored portion basis intact.
+final customFoodServiceProvider = Provider<CustomFoodService>((ref) {
+  return CustomFoodService(ref.watch(foodCacheRepositoryProvider));
+});
+
+/// Coordinates the throttled, effective-dated adaptive calculation. Lifecycle
+/// callers may invoke this freely; concurrent checks share one calculation.
+final adaptiveTargetCoordinatorProvider = Provider<AdaptiveTargetCoordinator>((
+  ref,
+) {
+  return AdaptiveTargetCoordinator(
+    adaptive: ref.watch(adaptiveMacroServiceProvider),
+    settings: ref.watch(settingsRepositoryProvider),
   );
 });
 

@@ -4,6 +4,27 @@ import 'package:flutter/services.dart';
 
 enum SharedDeleteResult { deleted, declined, notFound }
 
+/// Aggregate outcome of one user-authorized shared-storage delete operation.
+///
+/// A batch may contain files inserted by an earlier installation. Android can
+/// ask for consent to remove those files, so callers must treat [declined] and
+/// [failures] as warnings rather than as a failed backup publication.
+class SharedDeleteBatchResult {
+  final Set<String> deletedIds;
+  final Set<String> notFoundIds;
+  final bool declined;
+  final Map<String, String> failures;
+
+  const SharedDeleteBatchResult({
+    this.deletedIds = const {},
+    this.notFoundIds = const {},
+    this.declined = false,
+    this.failures = const {},
+  });
+
+  bool get completed => !declined && failures.isEmpty;
+}
+
 class SharedStorageAccessException implements Exception {
   final String code;
   final String message;
@@ -48,9 +69,16 @@ abstract class SharedStorage {
   Future<SharedDeleteResult> deleteDownload(String id);
 }
 
+/// Optional capability for platforms that can request consent for several
+/// legacy Downloads files in one operation. Kept separate so existing desktop
+/// and test storage implementations do not pretend they can show that prompt.
+abstract interface class SharedStorageBatchDeletion {
+  Future<SharedDeleteBatchResult> deleteDownloadsBatch(List<String> ids);
+}
+
 /// Fallback for platforms without shared storage (desktop/tests). Every call is
 /// a no-op so callers never need a platform check.
-class NoopSharedStorage implements SharedStorage {
+class NoopSharedStorage implements SharedStorage, SharedStorageBatchDeletion {
   const NoopSharedStorage();
 
   @override
@@ -69,6 +97,11 @@ class NoopSharedStorage implements SharedStorage {
   @override
   Future<SharedDeleteResult> deleteDownload(String id) async =>
       SharedDeleteResult.notFound;
+
+  @override
+  Future<SharedDeleteBatchResult> deleteDownloadsBatch(
+    List<String> ids,
+  ) async => SharedDeleteBatchResult(notFoundIds: ids.toSet());
 }
 
 /// Android implementation backed by MediaStore Downloads via a MethodChannel.
@@ -76,7 +109,8 @@ class NoopSharedStorage implements SharedStorage {
 /// MediaStore inserts into Downloads need NO runtime permission on API 29+
 /// (our minSdk is 24; on 24–28 the platform side falls back to a direct write
 /// under the public Downloads dir — see the Kotlin handler).
-class MediaStoreSharedStorage implements SharedStorage {
+class MediaStoreSharedStorage
+    implements SharedStorage, SharedStorageBatchDeletion {
   static const MethodChannel _channel = MethodChannel(
     'com.macrochef.app/downloads_backup',
   );
@@ -146,5 +180,25 @@ class MediaStoreSharedStorage implements SharedStorage {
       'not_found' => SharedDeleteResult.notFound,
       _ => throw StateError('Unknown shared delete result: $value'),
     };
+  }
+
+  @override
+  Future<SharedDeleteBatchResult> deleteDownloadsBatch(List<String> ids) async {
+    if (ids.isEmpty) return const SharedDeleteBatchResult();
+    final raw = await _channel.invokeMapMethod<String, dynamic>('deleteBatch', {
+      'ids': ids,
+    });
+    if (raw == null) throw StateError('Missing shared batch delete result');
+    Set<String> readIds(String key) =>
+        ((raw[key] as List<dynamic>?) ?? const []).whereType<String>().toSet();
+    final rawFailures = raw['failures'] as Map<dynamic, dynamic>? ?? const {};
+    return SharedDeleteBatchResult(
+      deletedIds: readIds('deletedIds'),
+      notFoundIds: readIds('notFoundIds'),
+      declined: raw['declined'] as bool? ?? false,
+      failures: rawFailures.map(
+        (key, value) => MapEntry(key.toString(), value.toString()),
+      ),
+    );
   }
 }

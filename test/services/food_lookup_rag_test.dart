@@ -46,6 +46,19 @@ class _Off extends OpenFoodFactsClient {
     calls++;
     return result;
   }
+
+  @override
+  Future<FoodMacros?> searchFood(String query) async {
+    calls++;
+    return result == null
+        ? null
+        : FoodMacros(
+            name: query,
+            perHundred: result!,
+            source: MacroSource.off,
+            isEstimate: false,
+          );
+  }
 }
 
 class _Usda extends UsdaClient {
@@ -168,9 +181,10 @@ void main() {
     expect((off.calls, usda.calls, llm.calls), (0, 0, 0));
   });
 
-  test('weak pack match grounds AI estimate without network lookup', () async {
+  test('pack no-direct-hit continues to USDA before any AI estimate', () async {
     final off = _Off(null);
-    final usda = _Usda(null);
+    const usdaPer = PerHundred(kcal: 145, protein: 27, carb: 0, fat: 3);
+    final usda = _Usda(usdaPer);
     final llm = _Llm(ai);
     final lookup = FoodLookup(
       cache: _Cache(),
@@ -186,46 +200,20 @@ void main() {
 
     final result = await lookup.resolve('unusual chicken dish');
 
-    expect(result!.source, MacroSource.ai);
-    expect(result.isEstimate, isTrue);
-    expect(llm.prompt, contains('Chicken breast grilled'));
-    expect((off.calls, usda.calls, llm.calls), (0, 0, 1));
+    expect(result!.source, MacroSource.usda);
+    expect(result.isEstimate, isFalse);
+    expect((off.calls, usda.calls, llm.calls), (0, 1, 0));
   });
 
-  test(
-    'empty pack result uses ungrounded AI estimate without network',
-    () async {
-      final off = _Off(null);
-      final usda = _Usda(null);
-      final llm = _Llm(ai);
-      final lookup = FoodLookup(
-        cache: _Cache(),
-        off: off,
-        usda: usda,
-        llm: llm,
-        usdaKey: 'key',
-        nutritionRetriever: NutritionRetriever(
-          db: _Db([], {}),
-          embedder: _Embedder(_f(1, 0)),
-        ),
-      );
-
-      final result = await lookup.resolve('unknown food');
-
-      expect(result!.source, MacroSource.ai);
-      expect(llm.prompt, isNot(contains('reference foods')));
-      expect((off.calls, usda.calls, llm.calls), (0, 0, 1));
-    },
-  );
-
-  test('local LLM failure does not leak into network food providers', () async {
-    final off = _Off(dbPer);
-    final usda = _Usda(dbPer);
+  test('empty pack result continues to USDA, OFF, then AI estimate', () async {
+    final off = _Off(null);
+    final usda = _Usda(null);
+    final llm = _Llm(ai);
     final lookup = FoodLookup(
       cache: _Cache(),
       off: off,
       usda: usda,
-      llm: _ThrowingLlm(),
+      llm: llm,
       usdaKey: 'key',
       nutritionRetriever: NutritionRetriever(
         db: _Db([], {}),
@@ -233,9 +221,34 @@ void main() {
       ),
     );
 
-    expect(await lookup.resolve('unknown food'), isNull);
-    expect((off.calls, usda.calls), (0, 0));
+    final result = await lookup.resolve('unknown food');
+
+    expect(result!.source, MacroSource.ai);
+    expect(llm.prompt, isNot(contains('reference foods')));
+    expect((off.calls, usda.calls, llm.calls), (1, 1, 1));
   });
+
+  test(
+    'local no-direct-hit still uses valid structured network providers',
+    () async {
+      final off = _Off(dbPer);
+      final usda = _Usda(dbPer);
+      final lookup = FoodLookup(
+        cache: _Cache(),
+        off: off,
+        usda: usda,
+        llm: _ThrowingLlm(),
+        usdaKey: 'key',
+        nutritionRetriever: NutritionRetriever(
+          db: _Db([], {}),
+          embedder: _Embedder(_f(1, 0)),
+        ),
+      );
+
+      expect((await lookup.resolve('unknown food'))!.source, MacroSource.usda);
+      expect((off.calls, usda.calls), (0, 1));
+    },
+  );
 
   test('pack failure fails soft to the existing cloud order', () async {
     const usdaPer = PerHundred(kcal: 120, protein: 20, carb: 0, fat: 4);

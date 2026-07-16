@@ -1,4 +1,5 @@
 import 'macros.dart';
+import '../services/portion_calculator.dart';
 
 /// Why an ingredient did or didn't contribute to the recipe total.
 enum ContributionStatus {
@@ -11,6 +12,7 @@ enum ContributionStatus {
 /// [grams] is null when [status] is unknownUnit; [macros] is null unless counted.
 class IngredientContribution {
   final String name;
+  final double? quantity;
   final double? grams;
   final MacroValues? macros;
   final ContributionStatus status;
@@ -24,30 +26,36 @@ class IngredientContribution {
   /// ingredients. Lets the UI show "2 × ≈49 g (tortilla)" and offer an adjust.
   final double? gramsPerPiece;
   final String? unit;
+  final PortionUnresolvedReason? unresolvedReason;
 
   const IngredientContribution({
     required this.name,
+    this.quantity,
     required this.grams,
     required this.macros,
     required this.status,
     this.source,
     this.gramsPerPiece,
     this.unit,
+    this.unresolvedReason,
   });
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'grams': grams,
-        'macros': macros?.toJson(),
-        'status': status.name,
-        'source': source?.name,
-        'gramsPerPiece': gramsPerPiece,
-        'unit': unit,
-      };
+    'name': name,
+    'quantity': quantity,
+    'grams': grams,
+    'macros': macros?.toJson(),
+    'status': status.name,
+    'source': source?.name,
+    'gramsPerPiece': gramsPerPiece,
+    'unit': unit,
+    'unresolvedReason': unresolvedReason?.name,
+  };
 
   factory IngredientContribution.fromJson(Map<String, dynamic> j) =>
       IngredientContribution(
         name: j['name'] as String,
+        quantity: (j['quantity'] as num?)?.toDouble(),
         grams: (j['grams'] as num?)?.toDouble(),
         macros: j['macros'] == null
             ? null
@@ -58,6 +66,11 @@ class IngredientContribution {
             : MacroSource.values.byName(j['source'] as String),
         gramsPerPiece: (j['gramsPerPiece'] as num?)?.toDouble(),
         unit: j['unit'] as String?,
+        unresolvedReason: j['unresolvedReason'] == null
+            ? null
+            : PortionUnresolvedReason.values.byName(
+                j['unresolvedReason'] as String,
+              ),
       );
 }
 
@@ -68,6 +81,7 @@ class RecipeBreakdown {
   final double totalGrams; // sum of counted grams
   final int countedCount;
   final int totalCount;
+  final bool allPhysicalGramsKnown;
 
   const RecipeBreakdown({
     required this.ingredients,
@@ -75,24 +89,26 @@ class RecipeBreakdown {
     required this.totalGrams,
     required this.countedCount,
     required this.totalCount,
+    required this.allPhysicalGramsKnown,
   });
 
   Map<String, dynamic> toJson() => {
-        'ingredients': ingredients.map((e) => e.toJson()).toList(),
-        'total': total.toJson(),
-        'totalGrams': totalGrams,
-        'countedCount': countedCount,
-        'totalCount': totalCount,
-      };
+    'ingredients': ingredients.map((e) => e.toJson()).toList(),
+    'total': total.toJson(),
+    'totalGrams': totalGrams,
+    'countedCount': countedCount,
+    'totalCount': totalCount,
+    'allPhysicalGramsKnown': allPhysicalGramsKnown,
+  };
 
   factory RecipeBreakdown.fromJson(Map<String, dynamic> j) => RecipeBreakdown(
-        ingredients: (j['ingredients'] as List)
-            .map((e) =>
-                IngredientContribution.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        total: MacroValues.fromJson(j['total'] as Map<String, dynamic>),
-        totalGrams: (j['totalGrams'] as num).toDouble(),
-        countedCount: j['countedCount'] as int,
-        totalCount: j['totalCount'] as int,
-      );
+    ingredients: (j['ingredients'] as List)
+        .map((e) => IngredientContribution.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    total: MacroValues.fromJson(j['total'] as Map<String, dynamic>),
+    totalGrams: (j['totalGrams'] as num).toDouble(),
+    countedCount: j['countedCount'] as int,
+    totalCount: j['totalCount'] as int,
+    allPhysicalGramsKnown: j['allPhysicalGramsKnown'] as bool? ?? true,
+  );
 }

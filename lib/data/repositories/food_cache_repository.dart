@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import '../database.dart';
 import '../../models/macros.dart';
@@ -47,6 +49,18 @@ class FoodCacheRepository {
               sodium100: Value(m.perHundred.sodium),
               isEstimate: Value(m.isEstimate),
               gramsPerPiece: Value(m.gramsPerPiece),
+              basisQuantity: Value(m.basis?.quantity),
+              basisUnit: Value(m.basis?.unit),
+              basisKcal: Value(m.basis?.macros.kcal),
+              basisProtein: Value(m.basis?.macros.protein),
+              basisCarb: Value(m.basis?.macros.carb),
+              basisFat: Value(m.basis?.macros.fat),
+              basisPhysicalGrams: Value(m.basisPhysicalGrams),
+              basisNeedsReview: Value(m.basisNeedsReview),
+              sourceUrl: Value(m.provenance?.url.toString()),
+              sourceTitle: Value(m.provenance?.title),
+              sourceRetrievedAt: Value(m.provenance?.retrievedAt),
+              sourceInferredFields: Value(_encodeInferredFields(m.provenance)),
             ),
           );
     });
@@ -80,9 +94,21 @@ class FoodCacheRepository {
               fat100: m.perHundred.fat,
               fibre100: Value(m.perHundred.fibre),
               sodium100: Value(m.perHundred.sodium),
-              isEstimate: const Value(false),
+              isEstimate: Value(m.isEstimate),
               userOverride: const Value(true),
               gramsPerPiece: Value(m.gramsPerPiece),
+              basisQuantity: Value(m.basis?.quantity),
+              basisUnit: Value(m.basis?.unit),
+              basisKcal: Value(m.basis?.macros.kcal),
+              basisProtein: Value(m.basis?.macros.protein),
+              basisCarb: Value(m.basis?.macros.carb),
+              basisFat: Value(m.basis?.macros.fat),
+              basisPhysicalGrams: Value(m.basisPhysicalGrams),
+              basisNeedsReview: Value(m.basisNeedsReview),
+              sourceUrl: Value(m.provenance?.url.toString()),
+              sourceTitle: Value(m.provenance?.title),
+              sourceRetrievedAt: Value(m.provenance?.retrievedAt),
+              sourceInferredFields: Value(_encodeInferredFields(m.provenance)),
             ),
           );
     });
@@ -143,5 +169,65 @@ class FoodCacheRepository {
     source: MacroSource.values.byName(row.source),
     isEstimate: row.isEstimate,
     gramsPerPiece: row.gramsPerPiece,
+    basis: _basis(row),
+    basisNeedsReview: row.basisNeedsReview,
+    provenance: _provenance(row),
+    basisPhysicalGrams: row.basisPhysicalGrams,
   );
+
+  String? _encodeInferredFields(FoodProvenance? provenance) {
+    if (provenance == null) return null;
+    final fields = provenance.inferredFields.toList()..sort();
+    return jsonEncode(fields);
+  }
+
+  FoodProvenance? _provenance(FoodCacheData row) {
+    final url = row.sourceUrl;
+    final title = row.sourceTitle;
+    final retrievedAt = row.sourceRetrievedAt;
+    if (url == null || title == null || retrievedAt == null) return null;
+
+    final parsedUrl = Uri.tryParse(url);
+    if (parsedUrl == null) return null;
+    final provenance = FoodProvenance(
+      url: parsedUrl,
+      title: title,
+      retrievedAt: retrievedAt,
+      inferredFields: _decodeInferredFields(row.sourceInferredFields),
+    );
+    return provenance.isValid ? provenance : null;
+  }
+
+  Set<String> _decodeInferredFields(String? encoded) {
+    if (encoded == null || encoded.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(encoded);
+      if (decoded is! List) return const {};
+      return decoded.whereType<String>().toSet();
+    } on FormatException {
+      return const {};
+    }
+  }
+
+  NutritionBasis? _basis(FoodCacheData row) {
+    if (row.basisUnit == null ||
+        row.basisQuantity == null ||
+        row.basisKcal == null ||
+        row.basisProtein == null ||
+        row.basisCarb == null ||
+        row.basisFat == null) {
+      return null;
+    }
+    if (!row.basisQuantity!.isFinite || row.basisQuantity! <= 0) return null;
+    return NutritionBasis(
+      quantity: row.basisQuantity!,
+      unit: row.basisUnit!,
+      macros: MacroValues(
+        kcal: row.basisKcal!,
+        protein: row.basisProtein!,
+        carb: row.basisCarb!,
+        fat: row.basisFat!,
+      ),
+    );
+  }
 }

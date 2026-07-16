@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Raw resources here are looked up by name from Dart at runtime
+     (flutter_local_notifications notification sounds), so R8's resource
+     shrinker sees no Java/XML reference and strips them from release builds,
+     which kills the scheduled rest-timer notification with invalid_sound.
+     Keep every raw resource. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/*" />

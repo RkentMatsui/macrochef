@@ -15,11 +15,13 @@ void main() {
 
   test('save recipe persists steps in order', () async {
     final repo = RecipeRepository(db);
-    final id = await repo.save(const ParsedRecipe(
-      title: 'Omelette',
-      ingredients: [Ingredient('eggs', quantity: '3')],
-      steps: ['Crack eggs', 'Whisk', 'Cook'],
-    ));
+    final id = await repo.save(
+      const ParsedRecipe(
+        title: 'Omelette',
+        ingredients: [Ingredient('eggs', quantity: '3')],
+        steps: ['Crack eggs', 'Whisk', 'Cook'],
+      ),
+    );
     final steps = await repo.stepsFor(id);
     expect(steps, ['Crack eggs', 'Whisk', 'Cook']);
   });
@@ -34,21 +36,92 @@ void main() {
 
   test('target get prefers date-specific over default', () async {
     final repo = TargetRepository(db);
-    await repo.setDefault(const DailyTarget(
-        kcal: 2000, protein: 150, carb: 200, fat: 60));
+    await repo.setDefault(
+      const DailyTarget(kcal: 2000, protein: 150, carb: 200, fat: 60),
+    );
     expect((await repo.get('2026-06-14'))!.kcal, 2000);
   });
 
+  AdaptiveTargetRecord adaptive({
+    required String effectiveFrom,
+    required double kcal,
+  }) => AdaptiveTargetRecord(
+    target: DailyTarget(kcal: kcal, protein: 150, carb: 200, fat: 60),
+    calculatedThrough: '2026-06-14',
+    effectiveFrom: effectiveFrom,
+    windowStart: '2026-05-18',
+    qualifiedIntakeDays: 14,
+    weightObservationCount: 10,
+    estimatedMaintenanceKcal: 2400,
+    appliedAdjustmentKcal: -100,
+    reason: 'lose',
+    createdAt: DateTime.utc(2026, 6, 15),
+  );
+
+  test('exact manual target override wins over adaptive target', () async {
+    final repo = TargetRepository(db);
+    await repo.setDefault(
+      const DailyTarget(kcal: 2200, protein: 150, carb: 225, fat: 65),
+    );
+    await repo.insertAdaptive(
+      adaptive(effectiveFrom: '2026-06-10', kcal: 2100),
+    );
+    await repo.setManualForDate(
+      '2026-06-14',
+      const DailyTarget(kcal: 2600, protein: 150, carb: 325, fat: 70),
+    );
+
+    expect((await repo.get('2026-06-14'))!.kcal, 2600);
+  });
+
+  test(
+    'adaptive targets resolve by effective date without rewriting history',
+    () async {
+      final repo = TargetRepository(db);
+      await repo.setDefault(
+        const DailyTarget(kcal: 2200, protein: 150, carb: 225, fat: 65),
+      );
+      await repo.insertAdaptive(
+        adaptive(effectiveFrom: '2026-06-10', kcal: 2100),
+      );
+      expect((await repo.get('2026-06-09'))!.kcal, 2200);
+      expect((await repo.get('2026-06-10'))!.kcal, 2100);
+
+      await repo.insertAdaptive(
+        adaptive(effectiveFrom: '2026-06-20', kcal: 2000),
+      );
+      expect((await repo.get('2026-06-15'))!.kcal, 2100);
+      expect((await repo.get('2026-06-20'))!.kcal, 2000);
+      expect((await repo.latestAdaptive())!.effectiveFrom, '2026-06-20');
+    },
+  );
+
   test('log forDate returns only that day', () async {
     final repo = LogRepository(db);
-    await repo.add(LogEntriesCompanion.insert(
-      date: '2026-06-14', foodName: 'rice', grams: 100,
-      kcal: 130, protein: 2.7, carb: 28, fat: 0.3, source: 'off',
-    ));
-    await repo.add(LogEntriesCompanion.insert(
-      date: '2026-06-13', foodName: 'oats', grams: 50,
-      kcal: 190, protein: 6.7, carb: 33, fat: 3.5, source: 'off',
-    ));
+    await repo.add(
+      LogEntriesCompanion.insert(
+        date: '2026-06-14',
+        foodName: 'rice',
+        grams: 100,
+        kcal: 130,
+        protein: 2.7,
+        carb: 28,
+        fat: 0.3,
+        source: 'off',
+      ),
+    );
+    await repo.add(
+      LogEntriesCompanion.insert(
+        date: '2026-06-13',
+        foodName: 'oats',
+        grams: 50,
+        kcal: 190,
+        protein: 6.7,
+        carb: 33,
+        fat: 3.5,
+        source: 'off',
+      ),
+    );
     final today = await repo.forDate('2026-06-14');
     expect(today.length, 1);
     expect(today.first.foodName, 'rice');
@@ -56,33 +129,48 @@ void main() {
 
   test('save persists servings and updateServings changes it', () async {
     final repo = RecipeRepository(db);
-    final id = await repo.save(const ParsedRecipe(
-      title: 'Chili', ingredients: [Ingredient('beans', quantity: '400', unit: 'g')],
-      steps: ['Cook'], servings: 4,
-    ));
-    var row = await (db.select(db.recipes)..where((r) => r.id.equals(id))).getSingle();
+    final id = await repo.save(
+      const ParsedRecipe(
+        title: 'Chili',
+        ingredients: [Ingredient('beans', quantity: '400', unit: 'g')],
+        steps: ['Cook'],
+        servings: 4,
+      ),
+    );
+    var row = await (db.select(
+      db.recipes,
+    )..where((r) => r.id.equals(id))).getSingle();
     expect(row.servings, 4);
     await repo.updateServings(id, 6);
-    row = await (db.select(db.recipes)..where((r) => r.id.equals(id))).getSingle();
+    row = await (db.select(
+      db.recipes,
+    )..where((r) => r.id.equals(id))).getSingle();
     expect(row.servings, 6);
   });
 
   test('servingsFor returns the recipe servings', () async {
     final repo = RecipeRepository(db);
-    final id = await repo.save(const ParsedRecipe(
-      title: 'Stew', ingredients: [], steps: [], servings: 3,
-    ));
+    final id = await repo.save(
+      const ParsedRecipe(
+        title: 'Stew',
+        ingredients: [],
+        steps: [],
+        servings: 3,
+      ),
+    );
     expect(await repo.servingsFor(id), 3);
   });
 
   test('updateFull replaces title, servings, ingredients, and steps', () async {
     final repo = RecipeRepository(db);
-    final id = await repo.save(const ParsedRecipe(
-      title: 'Old Title',
-      ingredients: [Ingredient('old ingredient', quantity: '1', unit: 'cup')],
-      steps: ['Old step 1', 'Old step 2'],
-      servings: 2,
-    ));
+    final id = await repo.save(
+      const ParsedRecipe(
+        title: 'Old Title',
+        ingredients: [Ingredient('old ingredient', quantity: '1', unit: 'cup')],
+        steps: ['Old step 1', 'Old step 2'],
+        servings: 2,
+      ),
+    );
 
     await repo.updateFull(
       id,
@@ -98,7 +186,9 @@ void main() {
     );
 
     // Assert title and servings updated
-    final row = await (db.select(db.recipes)..where((r) => r.id.equals(id))).getSingle();
+    final row = await (db.select(
+      db.recipes,
+    )..where((r) => r.id.equals(id))).getSingle();
     expect(row.title, 'New Title');
     expect(row.servings, 5);
 

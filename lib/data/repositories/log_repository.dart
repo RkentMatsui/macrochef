@@ -17,15 +17,25 @@ class LogRepository {
   /// Relies on YYYY-MM-DD being lexically ordered. Ordered by date asc.
   Future<List<LogEntry>> forDateRange(String start, String end) {
     return (db.select(db.logEntries)
-          ..where((e) =>
-              e.date.isBiggerOrEqualValue(start) &
-              e.date.isSmallerOrEqualValue(end))
+          ..where(
+            (e) =>
+                e.date.isBiggerOrEqualValue(start) &
+                e.date.isSmallerOrEqualValue(end),
+          )
           ..orderBy([(e) => OrderingTerm.asc(e.date)]))
         .get();
   }
 
   Future<void> update(int id, LogEntriesCompanion entry) async {
-    await (db.update(db.logEntries)..where((e) => e.id.equals(id))).write(entry);
+    await (db.update(
+      db.logEntries,
+    )..where((e) => e.id.equals(id))).write(entry);
+  }
+
+  Future<LogEntry?> findById(int id) {
+    return (db.select(
+      db.logEntries,
+    )..where((e) => e.id.equals(id))).getSingleOrNull();
   }
 
   Future<void> delete(int id) async {

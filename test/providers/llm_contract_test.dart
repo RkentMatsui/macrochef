@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macrochef/models/chat.dart';
 import 'package:macrochef/providers/llm/claude_provider.dart';
@@ -60,7 +61,7 @@ void main() {
       {
         'content': {
           'parts': [
-            {'text': 'Hello chef'}
+            {'text': 'Hello chef'},
           ],
         },
       },
@@ -71,7 +72,9 @@ void main() {
       {
         'content': {
           'parts': [
-            {'text': jsonEncode({'ok': true})}
+            {
+              'text': jsonEncode({'ok': true}),
+            },
           ],
         },
       },
@@ -182,17 +185,162 @@ void main() {
 
     for (final tc in structuredCases) {
       test('${tc.name} structured() returns expected map', () async {
-        final result = await tc.provider.structured(
-          'Extract data',
-          {
-            'type': 'object',
-            'properties': {
-              'ok': {'type': 'boolean'}
-            },
+        final result = await tc.provider.structured('Extract data', {
+          'type': 'object',
+          'properties': {
+            'ok': {'type': 'boolean'},
           },
-        );
+        });
         expect(result, {'ok': true});
       });
     }
+  });
+
+  group('LLMProvider web-grounding capability', () {
+    test(
+      'supported providers request their native search tool and retain URLs',
+      () async {
+        final cases =
+            <
+              ({
+                LLMProvider provider,
+                Map<String, dynamic> response,
+                String tool,
+              })
+            >[
+              (
+                provider: OpenAIProvider(apiKey: 'key', model: 'gpt-4o-mini'),
+                response: {
+                  'output': [
+                    {
+                      'content': [
+                        {
+                          'type': 'output_text',
+                          'text': jsonEncode({'ok': true}),
+                          'annotations': [
+                            {
+                              'type': 'url_citation',
+                              'url': 'https://example.com/openai',
+                              'title': 'OpenAI source',
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                tool: 'web_search',
+              ),
+              (
+                provider: GeminiProvider(
+                  apiKey: 'key',
+                  model: 'gemini-2.0-flash',
+                ),
+                response: {
+                  'candidates': [
+                    {
+                      'content': {
+                        'parts': [
+                          {
+                            'text': jsonEncode({'ok': true}),
+                          },
+                        ],
+                      },
+                      'groundingMetadata': {
+                        'groundingChunks': [
+                          {
+                            'web': {
+                              'uri': 'https://example.com/gemini',
+                              'title': 'Gemini source',
+                            },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                },
+                tool: 'google_search',
+              ),
+              (
+                provider: ClaudeProvider(
+                  apiKey: 'key',
+                  model: 'claude-haiku-4-5',
+                ),
+                response: {
+                  'content': [
+                    {
+                      'type': 'web_search_result',
+                      'url': 'https://example.com/claude',
+                      'title': 'Claude source',
+                    },
+                    {
+                      'type': 'tool_use',
+                      'name': 'emit',
+                      'input': {'ok': true},
+                    },
+                  ],
+                },
+                tool: 'web_search_20250305',
+              ),
+            ];
+
+        for (final item in cases) {
+          final provider = item.provider;
+          final dio = fakeDio(item.response);
+          Object? sent;
+          dio.interceptors.add(
+            InterceptorsWrapper(
+              onRequest: (options, handler) {
+                sent = options.data;
+                handler.next(options);
+              },
+            ),
+          );
+          final LLMProvider wired = switch (provider) {
+            OpenAIProvider p => OpenAIProvider(
+              apiKey: p.apiKey,
+              model: p.model,
+              dio: dio,
+            ),
+            GeminiProvider p => GeminiProvider(
+              apiKey: p.apiKey,
+              model: p.model,
+              dio: dio,
+            ),
+            ClaudeProvider p => ClaudeProvider(
+              apiKey: p.apiKey,
+              model: p.model,
+              dio: dio,
+            ),
+            _ => throw StateError('Unexpected provider'),
+          };
+
+          expect(wired.supportsWebGrounding, isTrue);
+          final result = await wired.groundedStructured('food', {
+            'type': 'object',
+            'properties': {
+              'ok': {'type': 'boolean'},
+            },
+          });
+          expect(result.data, {'ok': true});
+          expect(result.citations, hasLength(1));
+          expect(jsonEncode(sent), contains(item.tool));
+        }
+      },
+    );
+
+    test('Groq fails unsupported before I/O', () async {
+      final provider = GroqProvider(
+        apiKey: 'key',
+        model: 'llama-3.3-70b-versatile',
+        dio: fakeDio({}),
+      );
+
+      expect(provider.supportsWebGrounding, isFalse);
+      expect(
+        () => provider.groundedStructured('food', const {'type': 'object'}),
+        throwsUnsupportedError,
+      );
+    });
   });
 }

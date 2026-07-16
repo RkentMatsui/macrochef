@@ -6,7 +6,7 @@ import 'package:dio/dio.dart';
 import '../../models/chat.dart';
 import 'llm_provider.dart';
 
-class GeminiProvider implements LLMProvider {
+class GeminiProvider implements LLMProvider, LlmWebGroundingProvider {
   final String apiKey;
   final String model;
   final Dio _dio;
@@ -14,13 +14,90 @@ class GeminiProvider implements LLMProvider {
   static const _baseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models';
 
-  GeminiProvider({
-    required this.apiKey,
-    required this.model,
-    Dio? dio,
-  }) : _dio = dio ?? Dio();
+  GeminiProvider({required this.apiKey, required this.model, Dio? dio})
+    : _dio = dio ?? Dio();
 
   String get _endpoint => '$_baseUrl/$model:generateContent?key=$apiKey';
+
+  @override
+  bool get supportsWebGrounding => true;
+
+  @override
+  Future<LlmGroundedStructuredResponse> groundedStructured(
+    String prompt,
+    Map<String, dynamic> jsonSchema, {
+    ChatOpts? opts,
+  }) async {
+    // Gemini's Google Search tool supplies groundingMetadata.groundingChunks
+    // alongside the normal structured response.
+    final body = <String, dynamic>{
+      'contents': [
+        {
+          'role': 'user',
+          'parts': [
+            {'text': prompt},
+          ],
+        },
+      ],
+      'tools': [
+        {'google_search': {}},
+      ],
+      'generationConfig': {
+        'responseMimeType': 'application/json',
+        'responseSchema': jsonSchema,
+      },
+    };
+    if (opts?.maxTokens != null) {
+      (body['generationConfig'] as Map<String, dynamic>)['maxOutputTokens'] =
+          opts!.maxTokens;
+    }
+    if (opts?.temperature != null) {
+      (body['generationConfig'] as Map<String, dynamic>)['temperature'] =
+          opts!.temperature;
+    }
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _endpoint,
+        data: jsonEncode(body),
+        options: Options(headers: {'content-type': 'application/json'}),
+      );
+      final raw = response.data;
+      return LlmGroundedStructuredResponse(
+        data: Map<String, dynamic>.from(jsonDecode(_extractText(raw)) as Map),
+        citations: _groundingCitations(raw),
+      );
+    } on DioException catch (e) {
+      throw LlmException('Gemini grounded search error: ${_dioMessage(e)}');
+    } on FormatException catch (e) {
+      throw LlmException('Gemini grounded response was not JSON: $e');
+    }
+  }
+
+  List<LlmWebCitation> _groundingCitations(Map<String, dynamic>? data) {
+    final candidates = data?['candidates'];
+    if (candidates is! List || candidates.isEmpty || candidates.first is! Map) {
+      return const [];
+    }
+    final chunks = (candidates.first as Map)['groundingMetadata'] is Map
+        ? ((candidates.first as Map)['groundingMetadata']
+              as Map)['groundingChunks']
+        : null;
+    if (chunks is! List) return const [];
+    final citations = <LlmWebCitation>[];
+    for (final chunk in chunks) {
+      final web = chunk is Map ? chunk['web'] : null;
+      final rawUrl = web is Map ? web['uri'] : null;
+      final rawTitle = web is Map ? web['title'] : null;
+      final uri = rawUrl is String ? Uri.tryParse(rawUrl) : null;
+      if (uri != null &&
+          uri.hasScheme &&
+          rawTitle is String &&
+          rawTitle.trim().isNotEmpty) {
+        citations.add(LlmWebCitation(url: uri, title: rawTitle.trim()));
+      }
+    }
+    return citations;
+  }
 
   @override
   Future<String> chat(List<ChatMessage> messages, {ChatOpts? opts}) async {
@@ -31,9 +108,9 @@ class GeminiProvider implements LLMProvider {
         {
           'role': 'user',
           'parts': [
-            {'text': joined}
+            {'text': joined},
           ],
-        }
+        },
       ],
     };
 
@@ -71,9 +148,9 @@ class GeminiProvider implements LLMProvider {
         {
           'role': 'user',
           'parts': [
-            {'text': prompt}
+            {'text': prompt},
           ],
-        }
+        },
       ],
       'generationConfig': {
         'responseMimeType': 'application/json',
@@ -114,7 +191,7 @@ class GeminiProvider implements LLMProvider {
             },
             {'text': prompt},
           ],
-        }
+        },
       ],
       'generationConfig': {
         'responseMimeType': 'application/json',
@@ -144,10 +221,14 @@ class GeminiProvider implements LLMProvider {
     if (candidates is! List || candidates.isEmpty) {
       final reason = (data?['promptFeedback'] as Map?)?['blockReason'];
       throw LlmException(
-          'Gemini returned no candidates${reason != null ? ' (blocked: $reason)' : ''}.');
+        'Gemini returned no candidates${reason != null ? ' (blocked: $reason)' : ''}.',
+      );
     }
     final parts = (candidates[0] as Map?)?['content']?['parts'];
-    if (parts is! List || parts.isEmpty || parts[0] is! Map || (parts[0] as Map)['text'] is! String) {
+    if (parts is! List ||
+        parts.isEmpty ||
+        parts[0] is! Map ||
+        (parts[0] as Map)['text'] is! String) {
       throw LlmException('Gemini response contained no text part.');
     }
     return (parts[0] as Map)['text'] as String;

@@ -5,14 +5,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/macros.dart';
-import '../../services/custom_food_basis.dart';
 import '../../services/food_units.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../widgets/glass_panel.dart';
 import '../widgets/primary_button.dart';
+
+String _formatQuantity(double value) => value == value.roundToDouble()
+    ? value.toInt().toString()
+    : value.toString();
 
 // ---------------------------------------------------------------------------
 // CustomFoodsScreen
@@ -57,8 +61,9 @@ class _CustomFoodsScreenState extends ConsumerState<CustomFoodsScreen> {
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: AppColors.glassFillHigh,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               border: Border.all(color: AppColors.glassStroke, width: 1),
             ),
             child: _CustomFoodSheet(
@@ -101,11 +106,15 @@ class _CustomFoodsScreenState extends ConsumerState<CustomFoodsScreen> {
               ),
             )
           : foods.isEmpty
-              ? _buildEmpty()
-              : _buildList(foods),
+          ? _buildEmpty()
+          : _buildList(foods),
       bottomNavigationBar: Padding(
         padding: EdgeInsets.fromLTRB(
-            20, 8, 20, MediaQuery.of(context).padding.bottom + 16),
+          20,
+          8,
+          20,
+          MediaQuery.of(context).padding.bottom + 16,
+        ),
         child: PrimaryButton(
           label: 'Add custom food',
           icon: PhosphorIconsBold.plus,
@@ -181,31 +190,69 @@ class _CustomFoodsScreenState extends ConsumerState<CustomFoodsScreen> {
                           fontSize: 15,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Builder(builder: (_) {
-                        // Piece/serving foods show per-serving macros; weighed
-                        // foods show per-100g.
-                        final gpp = f.gramsPerPiece;
-                        final factor = gpp != null ? gpp / 100.0 : 1.0;
-                        final suffix = gpp != null ? 'per serving' : 'per 100g';
-                        return Text(
-                          '${(p.kcal * factor).toStringAsFixed(0)} kcal  ·  '
-                          'P ${(p.protein * factor).toStringAsFixed(1)}g  '
-                          'C ${(p.carb * factor).toStringAsFixed(1)}g  '
-                          'F ${(p.fat * factor).toStringAsFixed(1)}g  $suffix',
-                          style: const TextStyle(
-                            color: AppColors.textMid,
+                      if (f.basisNeedsReview)
+                        const Text(
+                          'Review serving basis',
+                          style: TextStyle(
+                            color: AppColors.ember,
                             fontSize: 12,
                           ),
-                        );
-                      }),
+                        ),
+                      const SizedBox(height: 4),
+                      Builder(
+                        builder: (_) {
+                          // Piece/serving foods show per-serving macros; weighed
+                          // foods show per-100g.
+                          final basis = f.basis;
+                          final factor = basis == null ? 1.0 : 1.0;
+                          final suffix = basis == null
+                              ? 'per 100g'
+                              : 'per ${_formatQuantity(basis.quantity)} ${basis.unit}';
+                          final display =
+                              basis?.macros ??
+                              MacroValues(
+                                kcal: p.kcal * factor,
+                                protein: p.protein * factor,
+                                carb: p.carb * factor,
+                                fat: p.fat * factor,
+                              );
+                          return Text(
+                            '${display.kcal.toStringAsFixed(0)} kcal  ·  '
+                            'P ${display.protein.toStringAsFixed(1)}g  '
+                            'C ${display.carb.toStringAsFixed(1)}g  '
+                            'F ${display.fat.toStringAsFixed(1)}g  $suffix',
+                            style: const TextStyle(
+                              color: AppColors.textMid,
+                              fontSize: 12,
+                            ),
+                          );
+                        },
+                      ),
+                      if (f.provenance != null)
+                        TextButton.icon(
+                          onPressed: () => launchUrl(
+                            f.provenance!.url,
+                            mode: LaunchMode.externalApplication,
+                          ),
+                          icon: const Icon(PhosphorIconsRegular.link, size: 14),
+                          label: Text(f.provenance!.title),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            foregroundColor: AppColors.ember,
+                            textStyle: const TextStyle(fontSize: 11),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
               IconButton(
-                icon: const Icon(PhosphorIconsRegular.trash,
-                    color: AppColors.fat, size: 20),
+                icon: const Icon(
+                  PhosphorIconsRegular.trash,
+                  color: AppColors.fat,
+                  size: 20,
+                ),
                 onPressed: () => _delete(f.name),
                 tooltip: 'Delete',
               ),
@@ -255,6 +302,15 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
     if (e != null) {
       _originalName = e.name;
       _nameCtrl.text = e.name;
+      if (e.basis != null) {
+        _basisQtyCtrl.text = _fmt(e.basis!.quantity);
+        _basisUnit = foodUnitByLabel(e.basis!.unit) ?? kFoodUnits.first;
+        _kcalCtrl.text = _fmt(e.basis!.macros.kcal);
+        _proteinCtrl.text = _fmt(e.basis!.macros.protein);
+        _carbCtrl.text = _fmt(e.basis!.macros.carb);
+        _fatCtrl.text = _fmt(e.basis!.macros.fat);
+        return;
+      }
       final gpp = e.gramsPerPiece;
       if (gpp != null) {
         // Count/volume food: show macros for one serving (back-converted from
@@ -266,8 +322,10 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
         _carbCtrl.text = _fmt(e.perHundred.carb * factor);
         _fatCtrl.text = _fmt(e.perHundred.fat * factor);
         _basisQtyCtrl.text = '1';
-        _basisUnit = kFoodUnits.firstWhere((u) => u.label == 'piece',
-            orElse: () => kFoodUnits.first);
+        _basisUnit = kFoodUnits.firstWhere(
+          (u) => u.label == 'piece',
+          orElse: () => kFoodUnits.first,
+        );
         _loadRememberedBasisUnit(e.name);
       } else {
         _kcalCtrl.text = _fmt(e.perHundred.kcal);
@@ -287,8 +345,9 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
         .get('foodunit:${name.toLowerCase()}');
     if (!mounted || saved == null || saved.isEmpty) return;
     final label = saved.split('|')[0];
-    final matches =
-        kFoodUnits.where((u) => u.label == label && u.gramsPerUnit == null);
+    final matches = kFoodUnits.where(
+      (u) => u.label == label && u.family != FoodUnitFamily.mass,
+    );
     if (matches.isNotEmpty) setState(() => _basisUnit = matches.first);
   }
 
@@ -311,9 +370,9 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a food name.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a food name.')));
       return;
     }
     final kcal = _num(_kcalCtrl);
@@ -338,36 +397,41 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
       }
       if (!mounted) return;
 
-      // Reduce "macros per <qty> <unit>" to the stored per-100g model.
       final qty = double.tryParse(_basisQtyCtrl.text.trim()) ?? 1;
-      final basis = customFoodBasis(
-        qty: qty,
-        unit: _basisUnit,
-        kcal: kcal,
-        protein: protein,
-        carb: carb,
-        fat: fat,
-      );
-      await repo.upsertOverride(
-        FoodMacros(
-          name: name,
-          perHundred: basis.perHundred,
-          source: MacroSource.manual,
-          isEstimate: false,
-          gramsPerPiece: basis.gramsPerPiece,
-        ),
-      );
+      await ref
+          .read(customFoodServiceProvider)
+          .remember(
+            name: name,
+            basis: NutritionBasis(
+              quantity: qty,
+              unit: _basisUnit.label,
+              macros: MacroValues(
+                kcal: kcal,
+                protein: protein,
+                carb: carb,
+                fat: fat,
+              ),
+            ),
+            gramsPerPiece: widget.existing?.gramsPerPiece,
+            // A typed custom-food edit is a user-authored value; it must not
+            // keep a citation that may no longer describe its macros.
+            provenance: null,
+          );
       // Remember the unit so this food defaults to it when logged.
-      await ref.read(settingsRepositoryProvider).set(
-          'foodunit:${name.toLowerCase()}', '${_basisUnit.label}|');
+      await ref
+          .read(settingsRepositoryProvider)
+          .set(
+            'foodunit:${name.toLowerCase()}',
+            '${_basisUnit.label}|${qty == qty.roundToDouble() ? qty.toInt() : qty}',
+          );
       if (!mounted) return;
       await widget.onSaved();
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -423,8 +487,10 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
               hintStyle: const TextStyle(color: AppColors.textLow),
               filled: true,
               fillColor: AppColors.surfaceHigh,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -449,15 +515,18 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                  child: _macroField(
-                      _proteinCtrl, 'Protein (g)', AppColors.protein)),
+                child: _macroField(
+                  _proteinCtrl,
+                  'Protein (g)',
+                  AppColors.protein,
+                ),
+              ),
               const SizedBox(width: 10),
               Expanded(
-                  child:
-                      _macroField(_carbCtrl, 'Carbs (g)', AppColors.carb)),
+                child: _macroField(_carbCtrl, 'Carbs (g)', AppColors.carb),
+              ),
               const SizedBox(width: 10),
-              Expanded(
-                  child: _macroField(_fatCtrl, 'Fat (g)', AppColors.fat)),
+              Expanded(child: _macroField(_fatCtrl, 'Fat (g)', AppColors.fat)),
             ],
           ),
           const SizedBox(height: 20),
@@ -482,8 +551,10 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
   Widget _basisRow() {
     return Row(
       children: [
-        const Text('Macros are per',
-            style: TextStyle(color: AppColors.textMid, fontSize: 13)),
+        const Text(
+          'Macros are per',
+          style: TextStyle(color: AppColors.textMid, fontSize: 13),
+        ),
         const SizedBox(width: 10),
         SizedBox(
           width: 60,
@@ -499,8 +570,10 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
               isDense: true,
               filled: true,
               fillColor: AppColors.surfaceHigh,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -521,8 +594,10 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
               isDense: true,
               filled: true,
               fillColor: AppColors.surfaceHigh,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -536,8 +611,11 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
                 ? null
                 : (v) {
                     if (v == null) return;
-                    setState(() => _basisUnit =
-                        kFoodUnits.firstWhere((u) => u.label == v));
+                    setState(
+                      () => _basisUnit = kFoodUnits.firstWhere(
+                        (u) => u.label == v,
+                      ),
+                    );
                   },
           ),
         ),
@@ -547,7 +625,10 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
 
   /// Labelled numeric field with a colour-coded label.
   Widget _macroField(
-      TextEditingController controller, String label, Color accent) {
+    TextEditingController controller,
+    String label,
+    Color accent,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -572,8 +653,10 @@ class _CustomFoodSheetState extends ConsumerState<_CustomFoodSheet> {
             hintStyle: const TextStyle(color: AppColors.textLow),
             filled: true,
             fillColor: AppColors.surfaceHigh,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,

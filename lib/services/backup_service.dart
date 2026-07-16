@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../data/database.dart';
+import 'shared_storage.dart';
 
 /// The single SQLite file drift_flutter stores under the app documents dir for
 /// `driftDatabase(name: 'macrochef')`.
@@ -21,6 +22,40 @@ const List<int> _sqliteMagic = [
 ];
 
 enum RestoreReplacementResult { applied, verificationFailed }
+
+/// A manual snapshot after it has been published to public Downloads.
+class ManualBackupExport {
+  final String fileName;
+  final String downloadsId;
+
+  const ManualBackupExport({required this.fileName, required this.downloadsId});
+}
+
+/// Publishes a user-requested snapshot to public Downloads. This plugin-free
+/// seam keeps the export contract testable outside the Settings widget.
+class ManualBackupPublisher {
+  final Future<File> Function(File destination) exportSnapshot;
+  final SharedStorage sharedStorage;
+  final Future<Directory> Function() temporaryDirectory;
+
+  const ManualBackupPublisher({
+    required this.exportSnapshot,
+    required this.sharedStorage,
+    required this.temporaryDirectory,
+  });
+
+  Future<ManualBackupExport> save(DateTime when) async {
+    final fileName = BackupService.manualFileName(when);
+    final directory = await temporaryDirectory();
+    final snapshot = File(p.join(directory.path, fileName));
+    final exported = await exportSnapshot(snapshot);
+    if (!await BackupIO.isSqliteFile(exported)) {
+      throw const FileSystemException('Backup snapshot is not a SQLite file');
+    }
+    final downloadsId = await sharedStorage.saveToDownloads(exported, fileName);
+    return ManualBackupExport(fileName: fileName, downloadsId: downloadsId);
+  }
+}
 
 /// Pure, path-based file operations for backup/restore — no plugins, no drift,
 /// so they're unit-testable with temp files. The plugin-facing [BackupService]
@@ -163,12 +198,20 @@ class BackupService {
     return dest;
   }
 
-  /// Suggested backup filename for [when] (caller passes DateTime.now()).
-  static String suggestedFileName(DateTime when) {
+  /// Filename for a backup the user explicitly saves or shares.
+  static String manualFileName(DateTime when) {
     String two(int n) => n.toString().padLeft(2, '0');
     final d = '${when.year}${two(when.month)}${two(when.day)}';
     final t = '${two(when.hour)}${two(when.minute)}';
-    return 'macrochef-backup-$d-$t.sqlite';
+    return 'macrochef-manual-$d-$t.sqlite';
+  }
+
+  /// Filename for an app-created rotating safety-net snapshot.
+  static String automaticFileName(DateTime when) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    final d = '${when.year}${two(when.month)}${two(when.day)}';
+    final t = '${two(when.hour)}${two(when.minute)}';
+    return 'macrochef-auto-$d-$t.sqlite';
   }
 
   /// Validate [source] is a SQLite file and stage it to be applied on next

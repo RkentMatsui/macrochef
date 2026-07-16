@@ -27,6 +27,7 @@ class MainActivity : FlutterActivity() {
     private val permittedRelativePath = "${Environment.DIRECTORY_DOWNLOADS}/$subDir/"
     private var pendingDeleteResult: MethodChannel.Result? = null
     private var pendingDeleteUri: Uri? = null
+    private var pendingDeleteBatchUris: List<Uri>? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -51,6 +52,9 @@ class MainActivity : FlutterActivity() {
                             result.success(null)
                         }
                         "delete" -> deleteDownload(call.argument<String>("id")!!, result)
+                        "deleteBatch" -> deleteDownloadsBatch(
+                            call.argument<List<String>>("ids") ?: emptyList(), result,
+                        )
                         else -> result.notImplemented()
                     }
                 } catch (e: BackupAccessRequiredException) {
@@ -212,6 +216,81 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    /**
+     * Requests deletion of legacy files in one Android consent operation. New
+     * app-owned files use [deleteDownload] and never reach this path.
+     */
+    private fun deleteDownloadsBatch(ids: List<String>, result: MethodChannel.Result) {
+        if (pendingDeleteResult != null) {
+            result.error("delete_in_progress", "Another delete request is awaiting consent", null)
+            return
+        }
+        if (ids.isEmpty()) {
+            result.success(deleteBatchResult())
+            return
+        }
+
+        val deleted = mutableListOf<String>()
+        val notFound = mutableListOf<String>()
+        val failures = mutableMapOf<String, String>()
+        val contentUris = mutableListOf<Uri>()
+        for (id in ids.distinct()) {
+            val uri = Uri.parse(id)
+            if (uri.scheme == "file") {
+                val file = uri.path?.let(::File)
+                if (file != null && file.delete()) deleted.add(id) else notFound.add(id)
+            } else {
+                contentUris.add(uri)
+            }
+        }
+        if (contentUris.isEmpty()) {
+            result.success(deleteBatchResult(deleted, notFound, false, failures))
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            pendingDeleteResult = result
+            pendingDeleteBatchUris = contentUris
+            try {
+                val sender = MediaStore.createDeleteRequest(contentResolver, contentUris).intentSender
+                startIntentSenderForResult(sender, DELETE_BATCH_REQUEST, null, 0, 0, 0)
+            } catch (e: Exception) {
+                pendingDeleteResult = null
+                pendingDeleteBatchUris = null
+                throw e
+            }
+            return
+        }
+
+        // Android 10 only supplies a recoverable action for one URI. Ask once,
+        // then report the remainder rather than generating one dialog per file.
+        val first = contentUris.first()
+        try {
+            when (deleteUri(first)) {
+                "deleted" -> deleted.add(first.toString())
+                else -> notFound.add(first.toString())
+            }
+            contentUris.drop(1).forEach {
+                failures[it.toString()] = "Batch consent is unavailable on Android 10"
+            }
+            result.success(deleteBatchResult(deleted, notFound, false, failures))
+        } catch (e: RecoverableSecurityException) {
+            pendingDeleteResult = result
+            pendingDeleteBatchUris = contentUris
+            pendingDeleteUri = first
+            try {
+                startIntentSenderForResult(
+                    e.userAction.actionIntent.intentSender, DELETE_BATCH_REQUEST, null, 0, 0, 0,
+                )
+            } catch (startError: Exception) {
+                pendingDeleteResult = null
+                pendingDeleteBatchUris = null
+                pendingDeleteUri = null
+                throw startError
+            }
+        }
+    }
+
     private fun deleteUri(uri: Uri): String =
         if (contentResolver.delete(uri, null, null) > 0) "deleted" else "not_found"
 
@@ -238,6 +317,10 @@ class MainActivity : FlutterActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == DELETE_BATCH_REQUEST) {
+            finishBatchDelete(resultCode)
+            return
+        }
         if (requestCode != DELETE_REQUEST) return
 
         val result = pendingDeleteResult ?: return
@@ -260,9 +343,58 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun finishBatchDelete(resultCode: Int) {
+        val result = pendingDeleteResult ?: return
+        val uris = pendingDeleteBatchUris ?: emptyList()
+        val firstUri = pendingDeleteUri
+        pendingDeleteResult = null
+        pendingDeleteBatchUris = null
+        pendingDeleteUri = null
+
+        if (resultCode != Activity.RESULT_OK) {
+            result.success(deleteBatchResult(declined = true))
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // createDeleteRequest completes the deletion once approved.
+            result.success(deleteBatchResult(deleted = uris.map { it.toString() }))
+            return
+        }
+        // On Android 10 the recoverable grant applies to only the selected URI.
+        val deleted = mutableListOf<String>()
+        val notFound = mutableListOf<String>()
+        val failures = mutableMapOf<String, String>()
+        try {
+            if (firstUri == null) throw IllegalStateException("Pending delete URI was lost")
+            when (deleteUri(firstUri)) {
+                "deleted" -> deleted.add(firstUri.toString())
+                else -> notFound.add(firstUri.toString())
+            }
+            uris.drop(1).forEach {
+                failures[it.toString()] = "Batch consent is unavailable on Android 10"
+            }
+            result.success(deleteBatchResult(deleted, notFound, false, failures))
+        } catch (e: Exception) {
+            result.error("downloads_backup", e.message, null)
+        }
+    }
+
+    private fun deleteBatchResult(
+        deleted: List<String> = emptyList(),
+        notFound: List<String> = emptyList(),
+        declined: Boolean = false,
+        failures: Map<String, String> = emptyMap(),
+    ): Map<String, Any> = mapOf(
+        "deletedIds" to deleted,
+        "notFoundIds" to notFound,
+        "declined" to declined,
+        "failures" to failures,
+    )
+
     private class BackupAccessRequiredException(message: String) : Exception(message)
 
     companion object {
         private const val DELETE_REQUEST = 9041
+        private const val DELETE_BATCH_REQUEST = 9042
     }
 }

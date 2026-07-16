@@ -29,8 +29,18 @@ import '../../models/recipe_breakdown.dart';
 
 String _formatDate(DateTime dt) {
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
 }
@@ -72,9 +82,9 @@ class _RecipesViewState extends ConsumerState<_RecipesView> {
   }
 
   Future<void> _openAddRecipe(BuildContext context) async {
-    final added = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const AddRecipeScreen()),
-    );
+    final added = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const AddRecipeScreen()));
     if (added == true) _refresh();
   }
 
@@ -98,14 +108,16 @@ class _RecipesViewState extends ConsumerState<_RecipesView> {
     if (!voiceReady) {
       messenger.showSnackBar(
         const SnackBar(
-            content: Text('Download the voice pack in Settings to cook')),
+          content: Text('Download the voice pack in Settings to cook'),
+        ),
       );
       return;
     }
     if (!aiReady) {
       messenger.showSnackBar(
         const SnackBar(
-            content: Text('Set up an AI provider in Settings to cook')),
+          content: Text('Set up an AI provider in Settings to cook'),
+        ),
       );
       return;
     }
@@ -141,7 +153,10 @@ class _RecipesViewState extends ConsumerState<_RecipesView> {
         actions: [
           IconButton(
             tooltip: 'Grocery list',
-            icon: const Icon(PhosphorIconsBold.shoppingCart, color: AppColors.ember),
+            icon: const Icon(
+              PhosphorIconsBold.shoppingCart,
+              color: AppColors.ember,
+            ),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const GroceryListScreen()),
             ),
@@ -243,61 +258,75 @@ class _RecipesViewState extends ConsumerState<_RecipesView> {
       // Clear the floating bottom nav (overlays the body via extendBody) so the
       // last recipe isn't hidden behind it when the list is long.
       padding: EdgeInsets.fromLTRB(
-          20, 20, 20, MediaQuery.of(context).padding.bottom + 96),
+        20,
+        20,
+        20,
+        MediaQuery.of(context).padding.bottom + 96,
+      ),
       itemCount: recipes.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final recipe = recipes[index];
         return GestureDetector(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => _RecipeDetailScreen(recipe: recipe),
+              onTap: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final deleted = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => _RecipeDetailScreen(recipe: recipe),
+                  ),
+                );
+                if (deleted == true && mounted) {
+                  _refresh();
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Deleted "${recipe.title}"')),
+                  );
+                }
+              },
+              child: GlassPanel(
+                frosted:
+                    false, // per-row in a ListView — flat fill avoids scroll jank
+                child: Row(
+                  children: [
+                    _recipeIconChip(index),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            recipe.title,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textHi,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _formatDate(recipe.createdAt),
+                            style: tt.bodySmall?.copyWith(
+                              color: AppColors.textMid,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Cook hands-free',
+                      icon: const Icon(
+                        PhosphorIconsDuotone.microphone,
+                        color: AppColors.ember,
+                      ),
+                      onPressed: () => _cookRecipe(recipe),
+                    ),
+                    const Icon(
+                      PhosphorIconsRegular.caretRight,
+                      color: AppColors.textLow,
+                    ),
+                  ],
+                ),
               ),
-            );
-          },
-          child: GlassPanel(
-            frosted: false, // per-row in a ListView — flat fill avoids scroll jank
-            child: Row(
-              children: [
-                _recipeIconChip(index),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        recipe.title,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textHi,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _formatDate(recipe.createdAt),
-                        style: tt.bodySmall?.copyWith(color: AppColors.textMid),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Cook hands-free',
-                  icon: const Icon(
-                    PhosphorIconsDuotone.microphone,
-                    color: AppColors.ember,
-                  ),
-                  onPressed: () => _cookRecipe(recipe),
-                ),
-                const Icon(
-                  PhosphorIconsRegular.caretRight,
-                  color: AppColors.textLow,
-                ),
-              ],
-            ),
-          ),
-        )
+            )
             .animate(delay: Duration(milliseconds: index * 60))
             .fadeIn(duration: 300.ms)
             .slideY(begin: 0.06, end: 0);
@@ -354,6 +383,7 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
   bool _breakdownLoading = true;
   bool _voiceReady = false;
   bool _aiReady = false;
+  bool _deleting = false;
 
   @override
   void initState() {
@@ -376,7 +406,9 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
   }
 
   Future<void> _loadServings() async {
-    final s = await ref.read(recipeRepositoryProvider).servingsFor(widget.recipe.id);
+    final s = await ref
+        .read(recipeRepositoryProvider)
+        .servingsFor(widget.recipe.id);
     if (mounted) setState(() => _servings = s);
   }
 
@@ -457,7 +489,8 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
       );
       if (mounted) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Logged $eaten serving(s).')));
+          SnackBar(content: Text('Logged $eaten serving(s).')),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -474,18 +507,27 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('How many servings?', style: TextStyle(color: AppColors.textHi)),
+        title: const Text(
+          'How many servings?',
+          style: TextStyle(color: AppColors.textHi),
+        ),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+          ],
           style: const TextStyle(color: AppColors.textHi),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, double.tryParse(ctrl.text.trim()) ?? 1),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(ctx, double.tryParse(ctrl.text.trim()) ?? 1),
             child: const Text('Log'),
           ),
         ],
@@ -495,7 +537,9 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
 
   Future<void> _setServings(int n) async {
     final v = n < 1 ? 1 : n;
-    await ref.read(recipeRepositoryProvider).updateServings(widget.recipe.id, v);
+    await ref
+        .read(recipeRepositoryProvider)
+        .updateServings(widget.recipe.id, v);
     final svc = await ref.read(recipeNutritionServiceProvider.future);
     svc.invalidate(widget.recipe.id);
     setState(() {
@@ -523,8 +567,9 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: AppColors.glassFillHigh,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               border: Border.all(color: AppColors.glassStroke, width: 1),
             ),
             child: _ManualMealSheet(
@@ -558,6 +603,48 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
     );
   }
 
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Delete recipe?',
+          style: TextStyle(color: AppColors.textHi),
+        ),
+        content: Text(
+          '"${widget.recipe.title}" will be removed permanently. '
+          'Logged meals will stay in your history.',
+          style: const TextStyle(color: AppColors.textMid),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deleting = true);
+    try {
+      await ref.read(recipeRepositoryProvider).delete(widget.recipe.id);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _deleting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't delete recipe. Try again.")),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
@@ -573,30 +660,43 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
         iconTheme: const IconThemeData(color: AppColors.ember),
         actions: [
           IconButton(
+            tooltip: 'Delete recipe',
+            icon: const Icon(
+              PhosphorIconsRegular.trash,
+              color: AppColors.ember,
+            ),
+            onPressed: _deleting ? null : _confirmDelete,
+          ),
+          IconButton(
             tooltip: 'Edit recipe',
-            icon: const Icon(PhosphorIconsRegular.pencilSimple,
-                color: AppColors.ember),
-            onPressed: () async {
-              final changed = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(
-                    builder: (_) =>
-                        EditRecipeScreen(recipe: widget.recipe)),
-              );
-              if (changed == true && mounted) {
-                final svc =
-                    await ref.read(recipeNutritionServiceProvider.future);
-                svc.invalidate(widget.recipe.id);
-                if (!mounted) return;
-                setState(() {
-                  _nutritionLoading = true;
-                  _breakdownLoading = true;
-                });
-                await _loadSteps();
-                await _loadServings();
-                await _loadNutrition();
-                await _loadBreakdown();
-              }
-            },
+            icon: const Icon(
+              PhosphorIconsRegular.pencilSimple,
+              color: AppColors.ember,
+            ),
+            onPressed: _deleting
+                ? null
+                : () async {
+                    final changed = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => EditRecipeScreen(recipe: widget.recipe),
+                      ),
+                    );
+                    if (changed == true && mounted) {
+                      final svc = await ref.read(
+                        recipeNutritionServiceProvider.future,
+                      );
+                      svc.invalidate(widget.recipe.id);
+                      if (!mounted) return;
+                      setState(() {
+                        _nutritionLoading = true;
+                        _breakdownLoading = true;
+                      });
+                      await _loadSteps();
+                      await _loadServings();
+                      await _loadNutrition();
+                      await _loadBreakdown();
+                    }
+                  },
           ),
         ],
         bottom: PreferredSize(
@@ -609,13 +709,13 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
               child: CircularProgressIndicator(color: AppColors.ember),
             )
           : _error != null
-              ? Center(
-                  child: Text(
-                    'Failed to load steps.',
-                    style: tt.bodyMedium?.copyWith(color: AppColors.textMid),
-                  ),
-                )
-              : _buildDetail(context, tt),
+          ? Center(
+              child: Text(
+                'Failed to load steps.',
+                style: tt.bodyMedium?.copyWith(color: AppColors.textMid),
+              ),
+            )
+          : _buildDetail(context, tt),
     );
   }
 
@@ -673,46 +773,46 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
                     final idx = entry.key;
                     final step = entry.value;
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 30,
-                            height: 30,
-                            margin: const EdgeInsets.only(right: 14),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: AppColors.ember.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '${idx + 1}',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.ember,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                step,
-                                style: tt.bodyMedium?.copyWith(
-                                  color: AppColors.textHi,
-                                  height: 1.55,
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 30,
+                                height: 30,
+                                margin: const EdgeInsets.only(right: 14),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: AppColors.ember.withValues(
+                                    alpha: 0.12,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${idx + 1}',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.ember,
+                                  ),
                                 ),
                               ),
-                            ),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    step,
+                                    style: tt.bodyMedium?.copyWith(
+                                      color: AppColors.textHi,
+                                      height: 1.55,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    )
-                        .animate(
-                          delay: Duration(milliseconds: 80 + idx * 60),
                         )
+                        .animate(delay: Duration(milliseconds: 80 + idx * 60))
                         .fadeIn(duration: 300.ms)
                         .slideY(begin: 0.05, end: 0);
                   }),
@@ -728,8 +828,11 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               children: [
-                const Icon(PhosphorIconsDuotone.usersThree,
-                    color: AppColors.ember, size: 22),
+                const Icon(
+                  PhosphorIconsDuotone.usersThree,
+                  color: AppColors.ember,
+                  size: 22,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -741,7 +844,9 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
                   ),
                 ),
                 _stepperButton(
-                    PhosphorIconsBold.minus, () => _setServings(_servings - 1)),
+                  PhosphorIconsBold.minus,
+                  () => _setServings(_servings - 1),
+                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: Text(
@@ -754,7 +859,9 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
                   ),
                 ),
                 _stepperButton(
-                    PhosphorIconsBold.plus, () => _setServings(_servings + 1)),
+                  PhosphorIconsBold.plus,
+                  () => _setServings(_servings + 1),
+                ),
               ],
             ),
           ),
@@ -775,8 +882,8 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
             label: _logging
                 ? 'Logging…'
                 : (_nutrition != null
-                    ? 'Log this meal'
-                    : 'Log this meal manually'),
+                      ? 'Log this meal'
+                      : 'Log this meal manually'),
             icon: PhosphorIconsRegular.chartLineUp,
             onPressed: (!_logging && !_nutritionLoading) ? _logMeal : null,
           ).animate(delay: 260.ms).fadeIn(duration: 300.ms),
@@ -787,24 +894,28 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
           PrimaryButton(
             label: 'Start Cooking',
             icon: PhosphorIconsRegular.play,
-            onPressed: canStartCooking(
-                    hasSteps: steps.isNotEmpty,
-                    voiceReady: _voiceReady,
-                    aiReady: _aiReady)
+            onPressed:
+                canStartCooking(
+                  hasSteps: steps.isNotEmpty,
+                  voiceReady: _voiceReady,
+                  aiReady: _aiReady,
+                )
                 ? _startCooking
                 : null,
           ).animate(delay: 200.ms).fadeIn(duration: 300.ms),
           if (cookDisabledHint(
-                  hasSteps: steps.isNotEmpty,
-                  voiceReady: _voiceReady,
-                  aiReady: _aiReady) !=
+                hasSteps: steps.isNotEmpty,
+                voiceReady: _voiceReady,
+                aiReady: _aiReady,
+              ) !=
               null) ...[
             const SizedBox(height: 6),
             Text(
               cookDisabledHint(
-                  hasSteps: steps.isNotEmpty,
-                  voiceReady: _voiceReady,
-                  aiReady: _aiReady)!,
+                hasSteps: steps.isNotEmpty,
+                voiceReady: _voiceReady,
+                aiReady: _aiReady,
+              )!,
               style: const TextStyle(color: AppColors.textLow, fontSize: 12),
               textAlign: TextAlign.center,
             ),
@@ -837,7 +948,10 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
       return const Center(
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 12),
-          child: CircularProgressIndicator(color: AppColors.ember, strokeWidth: 2),
+          child: CircularProgressIndicator(
+            color: AppColors.ember,
+            strokeWidth: 2,
+          ),
         ),
       ).animate(delay: 180.ms).fadeIn(duration: 300.ms);
     }
@@ -962,11 +1076,7 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: StatTile(
-                label: 'Fat',
-                value: m.fat,
-                color: AppColors.fat,
-              ),
+              child: StatTile(label: 'Fat', value: m.fat, color: AppColors.fat),
             ),
           ],
         ),
@@ -974,7 +1084,9 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 4),
           child: Text(
-            'Based on ${_nutrition!.totalGrams.toStringAsFixed(0)} g of resolved ingredients',
+            _nutrition!.totalGrams == null
+                ? 'Calculated from entered ingredient portions'
+                : 'Based on ${_nutrition!.totalGrams!.toStringAsFixed(0)} g of resolved ingredients',
             style: tt.bodySmall?.copyWith(color: AppColors.textLow),
           ),
         ),
@@ -992,38 +1104,45 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
         .fold<double>(0, (a, c) => c > a ? c : a);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Where it comes from',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textHi,
-                ),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Where it comes from',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textHi,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${b.countedCount} of ${b.totalCount} ingredients counted',
+                    style: tt.bodySmall?.copyWith(color: AppColors.textMid),
+                  ),
+                ],
               ),
-              const SizedBox(height: 2),
-              Text('${b.countedCount} of ${b.totalCount} ingredients counted',
-                  style: tt.bodySmall?.copyWith(color: AppColors.textMid)),
-            ],
-          ),
-        ),
-        GlassPanel(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ...b.ingredients.map((i) => _breakdownRow(context, tt, i, maxKcal)),
-            ],
-          ),
-        ),
-      ],
-    ).animate(delay: 200.ms).fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0);
+            ),
+            GlassPanel(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ...b.ingredients.map(
+                    (i) => _breakdownRow(context, tt, i, maxKcal),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        )
+        .animate(delay: 200.ms)
+        .fadeIn(duration: 300.ms)
+        .slideY(begin: 0.05, end: 0);
   }
 
   /// Small chip naming where an ingredient's macros came from. Colours match
@@ -1054,14 +1173,27 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
   }
 
   Widget _breakdownRow(
-      BuildContext context, TextTheme tt, IngredientContribution i, double maxKcal) {
-    final counted = i.status == ContributionStatus.counted;
+    BuildContext context,
+    TextTheme tt,
+    IngredientContribution i,
+    double maxKcal,
+  ) {
+    final counted = i.status == ContributionStatus.counted && i.macros != null;
     final kcal = i.macros?.kcal ?? 0;
-    final share = (counted && maxKcal > 0) ? (kcal / maxKcal).clamp(0.0, 1.0) : 0.0;
+    final portion = i.grams != null
+        ? '${i.grams!.toStringAsFixed(0)} g'
+        : i.quantity == null
+        ? 'Entered portion'
+        : '${i.quantity! == i.quantity!.roundToDouble() ? i.quantity!.toStringAsFixed(0) : i.quantity} ${i.unit ?? 'portion'}';
+    final share = (counted && maxKcal > 0)
+        ? (kcal / maxKcal).clamp(0.0, 1.0)
+        : 0.0;
 
     final flagText = switch (i.status) {
       ContributionStatus.unknownUnit => 'not counted — unknown unit',
       ContributionStatus.noMatch => 'not counted — no match',
+      ContributionStatus.counted when i.macros == null =>
+        'Nutrition unavailable',
       ContributionStatus.counted => '',
     };
 
@@ -1086,8 +1218,10 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
                 const SizedBox(width: 8),
               ],
               if (counted)
-                Text('${kcal.toStringAsFixed(0)} kcal',
-                    style: tt.bodySmall?.copyWith(color: AppColors.textMid)),
+                Text(
+                  '${kcal.toStringAsFixed(0)} kcal',
+                  style: tt.bodySmall?.copyWith(color: AppColors.textMid),
+                ),
             ],
           ),
           const SizedBox(height: 4),
@@ -1102,13 +1236,22 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              '${i.grams!.toStringAsFixed(0)} g · '
-              'P ${i.macros!.protein.toStringAsFixed(0)} · '
-              'C ${i.macros!.carb.toStringAsFixed(0)} · '
-              'F ${i.macros!.fat.toStringAsFixed(0)}',
-              style: tt.bodySmall?.copyWith(color: AppColors.textLow),
-            ),
+            if (i.grams == null)
+              Text(
+                '$portion / '
+                'P ${i.macros!.protein.toStringAsFixed(0)} / '
+                'C ${i.macros!.carb.toStringAsFixed(0)} / '
+                'F ${i.macros!.fat.toStringAsFixed(0)}',
+                style: tt.bodySmall?.copyWith(color: AppColors.textLow),
+              )
+            else
+              Text(
+                '${i.grams!.toStringAsFixed(0)} g · '
+                'P ${i.macros!.protein.toStringAsFixed(0)} · '
+                'C ${i.macros!.carb.toStringAsFixed(0)} · '
+                'F ${i.macros!.fat.toStringAsFixed(0)}',
+                style: tt.bodySmall?.copyWith(color: AppColors.textLow),
+              ),
             // Piece/count ingredients: show the per-piece basis + adjust hint.
             if (i.gramsPerPiece != null) ...[
               const SizedBox(height: 2),
@@ -1122,15 +1265,22 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
           ] else
             Row(
               children: [
-                Icon(PhosphorIconsRegular.warningCircle,
-                    size: 14, color: AppColors.textLow),
+                Icon(
+                  PhosphorIconsRegular.warningCircle,
+                  size: 14,
+                  color: AppColors.textLow,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(flagText,
-                      style: tt.bodySmall?.copyWith(color: AppColors.textLow)),
+                  child: Text(
+                    flagText,
+                    style: tt.bodySmall?.copyWith(color: AppColors.textLow),
+                  ),
                 ),
-                Text('Tap to fix',
-                    style: tt.bodySmall?.copyWith(color: AppColors.ember)),
+                Text(
+                  'Tap to fix',
+                  style: tt.bodySmall?.copyWith(color: AppColors.ember),
+                ),
               ],
             ),
         ],
@@ -1150,18 +1300,23 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
         ? 'piece'
         : i.unit!.trim();
     final ctrl = TextEditingController(
-        text: i.gramsPerPiece!.toStringAsFixed(0));
+      text: i.gramsPerPiece!.toStringAsFixed(0),
+    );
     final grams = await showDialog<double>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: Text('Weight of 1 $unit',
-            style: const TextStyle(color: AppColors.textHi)),
+        title: Text(
+          'Weight of 1 $unit',
+          style: const TextStyle(color: AppColors.textHi),
+        ),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+          ],
           style: const TextStyle(color: AppColors.textHi),
           decoration: const InputDecoration(
             suffixText: 'g',
@@ -1170,7 +1325,9 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () =>
                 Navigator.pop(ctx, double.tryParse(ctrl.text.trim())),
@@ -1194,7 +1351,9 @@ class _RecipeDetailScreenState extends ConsumerState<_RecipeDetailScreen> {
 
   Future<void> _openEditToFix() async {
     final changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => EditRecipeScreen(recipe: widget.recipe)),
+      MaterialPageRoute(
+        builder: (_) => EditRecipeScreen(recipe: widget.recipe),
+      ),
     );
     if (changed == true && mounted) {
       final svc = await ref.read(recipeNutritionServiceProvider.future);
@@ -1270,7 +1429,9 @@ class _ManualMealSheetState extends ConsumerState<_ManualMealSheet> {
 
     setState(() => _loading = true);
     try {
-      await ref.read(dailyLogServiceProvider).log(
+      await ref
+          .read(dailyLogServiceProvider)
+          .log(
             todayDate(),
             name: widget.recipeTitle,
             grams: grams,
@@ -1284,9 +1445,9 @@ class _ManualMealSheetState extends ConsumerState<_ManualMealSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -1337,17 +1498,18 @@ class _ManualMealSheetState extends ConsumerState<_ManualMealSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child:
-                    _macroField(_proteinCtrl, 'Protein (g)', AppColors.protein),
+                child: _macroField(
+                  _proteinCtrl,
+                  'Protein (g)',
+                  AppColors.protein,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _macroField(_carbCtrl, 'Carbs (g)', AppColors.carb),
               ),
               const SizedBox(width: 10),
-              Expanded(
-                child: _macroField(_fatCtrl, 'Fat (g)', AppColors.fat),
-              ),
+              Expanded(child: _macroField(_fatCtrl, 'Fat (g)', AppColors.fat)),
             ],
           ),
           const SizedBox(height: 12),
@@ -1369,7 +1531,10 @@ class _ManualMealSheetState extends ConsumerState<_ManualMealSheet> {
   }
 
   Widget _macroField(
-      TextEditingController controller, String label, Color accent) {
+    TextEditingController controller,
+    String label,
+    Color accent,
+  ) {
     final tt = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1395,8 +1560,10 @@ class _ManualMealSheetState extends ConsumerState<_ManualMealSheet> {
             hintStyle: tt.bodyMedium?.copyWith(color: AppColors.textLow),
             filled: true,
             fillColor: AppColors.surfaceHigh,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,

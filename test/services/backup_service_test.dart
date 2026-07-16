@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:macrochef/data/database.dart';
 import 'package:macrochef/services/backup_service.dart';
 import 'package:macrochef/services/recovery/backup_candidate_validator.dart';
+import 'package:macrochef/services/shared_storage.dart';
 import 'package:path/path.dart' as p;
 
 /// Minimal valid SQLite header + padding, enough for [BackupIO.isSqliteFile].
@@ -182,8 +183,57 @@ void main() {
     });
   });
 
-  test('suggestedFileName is stamped and sqlite-suffixed', () {
-    final name = BackupService.suggestedFileName(DateTime(2026, 7, 8, 9, 5));
-    expect(name, 'macrochef-backup-20260708-0905.sqlite');
+  test('manual and automatic names are stamped and distinct', () {
+    final when = DateTime(2026, 7, 8, 9, 5);
+    expect(
+      BackupService.manualFileName(when),
+      'macrochef-manual-20260708-0905.sqlite',
+    );
+    expect(
+      BackupService.automaticFileName(when),
+      'macrochef-auto-20260708-0905.sqlite',
+    );
   });
+
+  test(
+    'manual publisher validates and saves a manual-named snapshot',
+    () async {
+      final shared = _RecordingSharedStorage();
+      final publisher = ManualBackupPublisher(
+        temporaryDirectory: () async => tmp,
+        exportSnapshot: (destination) async {
+          await destination.writeAsBytes(_sqliteBytes);
+          return destination;
+        },
+        sharedStorage: shared,
+      );
+
+      final result = await publisher.save(DateTime(2026, 7, 15, 14, 30));
+
+      expect(result.fileName, 'macrochef-manual-20260715-1430.sqlite');
+      expect(result.downloadsId, 'content://manual');
+      expect(shared.saved, [result.fileName]);
+    },
+  );
+}
+
+class _RecordingSharedStorage implements SharedStorage {
+  final List<String> saved = [];
+
+  @override
+  Future<File> copyToPrivate(SharedBackup backup, File destination) async =>
+      destination;
+
+  @override
+  Future<SharedDeleteResult> deleteDownload(String id) async =>
+      SharedDeleteResult.notFound;
+
+  @override
+  Future<List<SharedBackup>> listDownloads(String prefix) async => const [];
+
+  @override
+  Future<String> saveToDownloads(File source, String fileName) async {
+    saved.add(fileName);
+    return 'content://manual';
+  }
 }

@@ -1,28 +1,13 @@
 import '../models/macros.dart';
 import 'food_units.dart';
 
-/// Result of reducing a custom food's "macros per quantity-of-unit" entry to
-/// the stored model: per-100g macros plus an optional grams-per-serving.
 class CustomFoodBasis {
+  final NutritionBasis basis;
   final PerHundred perHundred;
-
-  /// Grams of one serving/piece. Null for a mass-based food (entered in g/kg/oz);
-  /// for a count/volume unit with no known weight it is the reference sentinel
-  /// [kRefServingGrams] so the food always logs/scales by the unit.
   final double? gramsPerPiece;
-
-  const CustomFoodBasis(this.perHundred, this.gramsPerPiece);
+  const CustomFoodBasis(this.basis, this.perHundred, this.gramsPerPiece);
 }
 
-/// One serving of a count/volume unit (piece/cup/…) with no known gram weight is
-/// treated as this many "reference grams", so the stored per-100g values reduce
-/// to the per-serving macros and logging "N units" yields N × that serving.
-const double kRefServingGrams = 100.0;
-
-/// Converts macros entered for [qty] of [unit] into the stored per-100g model
-/// (+ optional grams-per-serving). Mass units (g/kg/oz) convert exactly via the
-/// unit's gram factor; count/volume units (piece/cup/…) use the reference-gram
-/// sentinel so the food logs by that unit without any weighing.
 CustomFoodBasis customFoodBasis({
   required double qty,
   required FoodUnit unit,
@@ -32,19 +17,65 @@ CustomFoodBasis customFoodBasis({
   required double fat,
 }) {
   final q = qty <= 0 ? 1.0 : qty;
-  final gpu = unit.gramsPerUnit;
-  if (gpu != null) {
-    // Mass unit — exact grams for the entered serving.
-    final grams = q * gpu;
-    final f = grams <= 0 ? 0.0 : 100.0 / grams;
+  final basis = NutritionBasis(
+    quantity: q,
+    unit: unit.label,
+    macros: MacroValues(kcal: kcal, protein: protein, carb: carb, fat: fat),
+  );
+  if (unit.family == FoodUnitFamily.mass) {
+    final grams = q * unit.canonicalFactor;
+    final f = 100 / grams;
     return CustomFoodBasis(
-      PerHundred(kcal: kcal * f, protein: protein * f, carb: carb * f, fat: fat * f),
+      basis,
+      PerHundred(
+        kcal: kcal * f,
+        protein: protein * f,
+        carb: carb * f,
+        fat: fat * f,
+      ),
       null,
     );
   }
-  // Count/volume unit — 1 unit = kRefServingGrams; per-100g == per-serving / q.
-  return CustomFoodBasis(
-    PerHundred(kcal: kcal / q, protein: protein / q, carb: carb / q, fat: fat / q),
-    kRefServingGrams,
-  );
+  return CustomFoodBasis(basis, PerHundred.zero, null);
+}
+
+/// Derives compatibility values for an already-authored nutrition basis.
+///
+/// The [NutritionBasis] remains authoritative.  The per-100g values returned
+/// here are only for older callers that still need normalized values.  An
+/// explicit [physicalGrams] is used when a non-mass published basis (such as a
+/// serving) has a cited weight; it is never inferred from the unit label.
+CustomFoodBasis customFoodBasisFromNutritionBasis({
+  required NutritionBasis basis,
+  double? physicalGrams,
+}) {
+  final unit = foodUnitByLabel(basis.unit);
+  final massGrams = unit?.family == FoodUnitFamily.mass
+      ? basis.quantity * unit!.canonicalFactor
+      : null;
+  final grams = physicalGrams ?? massGrams;
+  final macros = basis.macros;
+
+  final perHundred = grams != null && grams.isFinite && grams > 0
+      ? PerHundred(
+          kcal: macros.kcal * 100 / grams,
+          protein: macros.protein * 100 / grams,
+          carb: macros.carb * 100 / grams,
+          fat: macros.fat * 100 / grams,
+          fibre: macros.fibre == null ? null : macros.fibre! * 100 / grams,
+        )
+      : PerHundred.zero;
+
+  // This legacy column represents the weight of one count unit.  Preserve an
+  // explicitly supplied physical weight only when it can be expressed that
+  // way; a volume basis and a multi-serving basis must not be misrepresented.
+  final gramsPerPiece =
+      physicalGrams != null &&
+          physicalGrams.isFinite &&
+          physicalGrams > 0 &&
+          unit?.family == FoodUnitFamily.count &&
+          basis.quantity > 0
+      ? physicalGrams / basis.quantity
+      : null;
+  return CustomFoodBasis(basis, perHundred, gramsPerPiece);
 }

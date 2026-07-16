@@ -46,6 +46,11 @@ class _RootShellState extends ConsumerState<RootShell> {
       if (!finalized) {
         await ref.read(autoBackupServiceProvider).runOnLaunch(DateTime.now());
       }
+      // Adaptive target checks are deliberately fire-and-forget: calculating
+      // never delays first paint and the coordinator contains failures.
+      await ref
+          .read(adaptiveTargetCoordinatorProvider)
+          .runIfDue(DateTime.now());
     });
   }
 

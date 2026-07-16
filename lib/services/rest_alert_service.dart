@@ -53,15 +53,30 @@ class RestAlertService {
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (android != null) {
-      await android.createNotificationChannel(const AndroidNotificationChannel(
-        _channelId,
-        'Rest timer',
-        description: 'Alerts you when a rest period finishes.',
-        importance: Importance.high,
-        playSound: true,
-        sound: RawResourceAndroidNotificationSound('rest_donev2'),
-        enableVibration: true,
-      ));
+      try {
+        await android
+            .createNotificationChannel(const AndroidNotificationChannel(
+          _channelId,
+          'Rest timer',
+          description: 'Alerts you when a rest period finishes.',
+          importance: Importance.high,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('rest_donev2'),
+          enableVibration: true,
+        ));
+      } catch (_) {
+        // Custom sound unresolvable (missing raw resource): a default-sound
+        // channel beats leaving the service permanently uninitialised.
+        await android
+            .createNotificationChannel(const AndroidNotificationChannel(
+          _channelId,
+          'Rest timer',
+          description: 'Alerts you when a rest period finishes.',
+          importance: Importance.high,
+          playSound: true,
+          enableVibration: true,
+        ));
+      }
       await android.requestNotificationsPermission();
       await android.requestExactAlarmsPermission();
     }
@@ -88,12 +103,27 @@ class RestAlertService {
     // UTC instant + duration → correct absolute moment regardless of zone, so
     // we don't need the device's timezone location resolved.
     final when = tz.TZDateTime.now(tz.UTC).add(after);
-    await _plugin.zonedSchedule(
+    try {
+      await _schedule(when, scheduleMode, withCustomSound: true);
+    } catch (_) {
+      // The custom sound failed to resolve (e.g. the raw resource missing from
+      // the build — the plugin rejects the schedule with invalid_sound). A
+      // default-sound alert beats no alert: retry without the custom sound.
+      await _schedule(when, scheduleMode, withCustomSound: false);
+    }
+  }
+
+  Future<void> _schedule(
+    tz.TZDateTime when,
+    AndroidScheduleMode scheduleMode, {
+    required bool withCustomSound,
+  }) {
+    return _plugin.zonedSchedule(
       id: _notificationId,
       title: 'Rest complete',
       body: 'Time for your next set 💪',
       scheduledDate: when,
-      notificationDetails: const NotificationDetails(
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId,
           'Rest timer',
@@ -101,11 +131,13 @@ class RestAlertService {
           importance: Importance.high,
           priority: Priority.high,
           category: AndroidNotificationCategory.alarm,
-          sound: RawResourceAndroidNotificationSound('rest_donev2'),
+          sound: withCustomSound
+              ? const RawResourceAndroidNotificationSound('rest_donev2')
+              : null,
           playSound: true,
           enableVibration: true,
         ),
-        iOS: DarwinNotificationDetails(
+        iOS: const DarwinNotificationDetails(
           presentSound: true,
           interruptionLevel: InterruptionLevel.timeSensitive,
         ),

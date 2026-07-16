@@ -60,8 +60,7 @@ class FakeLLMProvider implements LLMProvider {
     String prompt,
     Map<String, dynamic> jsonSchema, {
     ChatOpts? opts,
-  }) async =>
-      {'intent': 'unknown'};
+  }) async => {'intent': 'unknown'};
 
   @override
   Future<Map<String, dynamic>> vision(
@@ -69,8 +68,7 @@ class FakeLLMProvider implements LLMProvider {
     String prompt,
     Map<String, dynamic> jsonSchema, {
     ChatOpts? opts,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 }
 
 class FakeOFF extends OpenFoodFactsClient {
@@ -79,6 +77,16 @@ class FakeOFF extends OpenFoodFactsClient {
 
   @override
   Future<PerHundred?> search(String query) async => _result;
+
+  @override
+  Future<FoodMacros?> searchFood(String query) async => _result == null
+      ? null
+      : FoodMacros(
+          name: query,
+          perHundred: _result,
+          source: MacroSource.off,
+          isEstimate: false,
+        );
 }
 
 class FakeUSDA extends UsdaClient {
@@ -187,11 +195,7 @@ void main() {
 
   test('"what is next" speaks step 1 ("Chop onions")', () async {
     final speech = FakeSpeech();
-    final session = makeSession(
-      steps: steps,
-      speech: speech,
-      db: db,
-    );
+    final session = makeSession(steps: steps, speech: speech, db: db);
 
     // Initial step is 0. "what is next" should advance to step 1
     await session.handleUtterance('what is next');
@@ -201,11 +205,7 @@ void main() {
 
   test('"next" then "next" advances through steps', () async {
     final speech = FakeSpeech();
-    final session = makeSession(
-      steps: steps,
-      speech: speech,
-      db: db,
-    );
+    final session = makeSession(steps: steps, speech: speech, db: db);
 
     await session.handleUtterance('next');
     expect(session.currentStep.value, 1);
@@ -218,11 +218,7 @@ void main() {
 
   test('"repeat" re-speaks current step', () async {
     final speech = FakeSpeech();
-    final session = makeSession(
-      steps: steps,
-      speech: speech,
-      db: db,
-    );
+    final session = makeSession(steps: steps, speech: speech, db: db);
 
     // Advance to step 1 ("Fry")
     await session.handleUtterance('next');
@@ -236,99 +232,110 @@ void main() {
 
   test('"what is next" from step 0 speaks step index 1', () async {
     final speech = FakeSpeech();
-    final session = makeSession(
-      steps: steps,
-      speech: speech,
-      db: db,
-    );
+    final session = makeSession(steps: steps, speech: speech, db: db);
 
     await session.handleUtterance('what is next');
     expect(speech.lastSpoken, steps[1]); // "Fry"
   });
 
-  test('log ingredient resolves macros and spoken confirmation contains protein',
-      () async {
-    final speech = FakeSpeech();
-    // chicken breast: 165 kcal/100g, 31g protein, 0 carb, 3.6g fat
-    const chickenPer100 = PerHundred(kcal: 165, protein: 31, carb: 0, fat: 3.6);
+  test(
+    'log ingredient resolves macros and spoken confirmation contains protein',
+    () async {
+      final speech = FakeSpeech();
+      // chicken breast: 165 kcal/100g, 31g protein, 0 carb, 3.6g fat
+      const chickenPer100 = PerHundred(
+        kcal: 165,
+        protein: 31,
+        carb: 0,
+        fat: 3.6,
+      );
 
-    final session = makeSession(
-      steps: steps,
-      speech: speech,
-      db: db,
-      chickenPer100: chickenPer100,
-    );
+      final session = makeSession(
+        steps: steps,
+        speech: speech,
+        db: db,
+        chickenPer100: chickenPer100,
+      );
 
-    // 200g chicken breast → 62g protein
-    await session.handleUtterance('200 grams of chicken breast');
+      // 200g chicken breast → 62g protein
+      await session.handleUtterance('200 grams of chicken breast');
 
-    // Check that something was spoken
-    expect(speech.spoken, isNotEmpty);
-    // The confirmation should mention protein = 62
-    expect(speech.lastSpoken, contains('62'));
-  });
+      // Check that something was spoken
+      expect(speech.spoken, isNotEmpty);
+      // The confirmation should mention protein = 62
+      expect(speech.lastSpoken, contains('62'));
+    },
+  );
 
-  test('spoken confirmation names the local-database source for a pack hit',
-      () async {
-    final speech = FakeSpeech();
-    const chickenPer100 = PerHundred(kcal: 165, protein: 31, carb: 0, fat: 3.6);
+  test(
+    'spoken confirmation names the local-database source for a pack hit',
+    () async {
+      final speech = FakeSpeech();
+      const chickenPer100 = PerHundred(
+        kcal: 165,
+        protein: 31,
+        carb: 0,
+        fat: 3.6,
+      );
 
-    final session = makeSession(
-      steps: steps,
-      speech: speech,
-      db: db,
-      // A cached localDb food resolves directly (no retriever/network needed),
-      // exercising the same source that a real pack direct-hit produces.
-      cacheSeed: const [
-        FoodMacros(
-          name: 'chicken breast',
-          perHundred: chickenPer100,
-          source: MacroSource.localDb,
-          isEstimate: false,
-        ),
-      ],
-    );
+      final session = makeSession(
+        steps: steps,
+        speech: speech,
+        db: db,
+        // A cached localDb food resolves directly (no retriever/network needed),
+        // exercising the same source that a real pack direct-hit produces.
+        cacheSeed: const [
+          FoodMacros(
+            name: 'chicken breast',
+            perHundred: chickenPer100,
+            source: MacroSource.localDb,
+            isEstimate: false,
+          ),
+        ],
+      );
 
-    await session.handleUtterance('200 grams of chicken breast');
+      await session.handleUtterance('200 grams of chicken breast');
 
-    expect(speech.lastSpoken, contains('62')); // still reports the macros
-    expect(speech.lastSpoken, contains('from the local database'));
-  });
+      expect(speech.lastSpoken, contains('62')); // still reports the macros
+      expect(speech.lastSpoken, contains('from the local database'));
+    },
+  );
 
-  test('adjustIngredient overrides the recipe ingredient and does NOT log',
-      () async {
-    final speech = FakeSpeech();
-    final adjusted = <String, double>{};
-    var recomputed = false;
+  test(
+    'adjustIngredient overrides the recipe ingredient and does NOT log',
+    () async {
+      final speech = FakeSpeech();
+      final adjusted = <String, double>{};
+      var recomputed = false;
 
-    final session = makeSession(
-      steps: const ['Cook the chicken'],
-      speech: speech,
-      db: db,
-      recipeId: 42,
-      onAdjustIngredient: (food, grams) async {
-        adjusted[food] = grams;
-        return true; // matched
-      },
-      onRecipeNutritionChanged: () async {
-        recomputed = true;
-      },
-    );
+      final session = makeSession(
+        steps: const ['Cook the chicken'],
+        speech: speech,
+        db: db,
+        recipeId: 42,
+        onAdjustIngredient: (food, grams) async {
+          adjusted[food] = grams;
+          return true; // matched
+        },
+        onRecipeNutritionChanged: () async {
+          recomputed = true;
+        },
+      );
 
-    await session.handleUtterance('I used 1325g of chicken');
+      await session.handleUtterance('I used 1325g of chicken');
 
-    expect(adjusted['chicken'], 1325);
-    expect(recomputed, isTrue);
-    // No daily log entry was created for this adjust.
-    final totals = await session.log.totals('2026-06-14');
-    expect(totals.consumed.kcal, 0);
-    expect(speech.lastSpoken!.toLowerCase(), contains('chicken'));
-  });
+      expect(adjusted['chicken'], 1325);
+      expect(recomputed, isTrue);
+      // No daily log entry was created for this adjust.
+      final totals = await session.log.totals('2026-06-14');
+      expect(totals.consumed.kcal, 0);
+      expect(speech.lastSpoken!.toLowerCase(), contains('chicken'));
+    },
+  );
 
   test('adjustIngredient with no recipe match falls back to logging', () async {
     final speech = FakeSpeech();
-    const chickenPer100 =
-        PerHundred(kcal: 165, protein: 31, carb: 0, fat: 3.6);
+    const chickenPer100 = PerHundred(kcal: 165, protein: 31, carb: 0, fat: 3.6);
     final session = makeSession(
       steps: const ['Cook'],
       speech: speech,
@@ -347,11 +354,7 @@ void main() {
 
   test('"exit" sets exited=true and speaks goodbye', () async {
     final speech = FakeSpeech();
-    final session = makeSession(
-      steps: steps,
-      speech: speech,
-      db: db,
-    );
+    final session = makeSession(steps: steps, speech: speech, db: db);
 
     await session.handleUtterance('exit');
     expect(session.exited, true);
@@ -360,11 +363,7 @@ void main() {
 
   test('"stop cooking" also sets exited=true', () async {
     final speech = FakeSpeech();
-    final session = makeSession(
-      steps: steps,
-      speech: speech,
-      db: db,
-    );
+    final session = makeSession(steps: steps, speech: speech, db: db);
 
     await session.handleUtterance('stop cooking');
     expect(session.exited, true);

@@ -43,8 +43,7 @@ import 'package:macrochef/services/recipe_service.dart';
 /// 'kcal') and returns deterministic data for each.
 class FakeLlm implements LLMProvider {
   @override
-  Future<String> chat(List<ChatMessage> messages, {ChatOpts? opts}) async =>
-      '';
+  Future<String> chat(List<ChatMessage> messages, {ChatOpts? opts}) async => '';
 
   @override
   Future<Map<String, dynamic>> structured(
@@ -78,8 +77,7 @@ class FakeLlm implements LLMProvider {
     String prompt,
     Map<String, dynamic> jsonSchema, {
     ChatOpts? opts,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 }
 
 class FakeSpeech implements SpeechProvider {
@@ -115,6 +113,14 @@ class FakeOFF extends OpenFoodFactsClient {
   @override
   Future<PerHundred?> search(String query) async =>
       const PerHundred(kcal: 165, protein: 31, carb: 0, fat: 3.6);
+
+  @override
+  Future<FoodMacros?> searchFood(String query) async => const FoodMacros(
+    name: 'chicken breast',
+    perHundred: PerHundred(kcal: 165, protein: 31, carb: 0, fat: 3.6),
+    source: MacroSource.off,
+    isEstimate: false,
+  );
 }
 
 class FakeUSDA extends UsdaClient {
@@ -174,102 +180,104 @@ void main() {
 
   tearDown(() => db.close());
 
-  test('cook-and-log: parse recipe, step through session, log ingredient, verify totals',
-      () async {
-    // -----------------------------------------------------------------------
-    // 1. Wire up real repositories on in-memory DB
-    // -----------------------------------------------------------------------
-    final recipeRepo = RecipeRepository(db);
-    final logRepo = LogRepository(db);
-    final targetRepo = TargetRepository(db);
+  test(
+    'cook-and-log: parse recipe, step through session, log ingredient, verify totals',
+    () async {
+      // -----------------------------------------------------------------------
+      // 1. Wire up real repositories on in-memory DB
+      // -----------------------------------------------------------------------
+      final recipeRepo = RecipeRepository(db);
+      final logRepo = LogRepository(db);
+      final targetRepo = TargetRepository(db);
 
-    // -----------------------------------------------------------------------
-    // 2. Parse and save the recipe via RecipeService
-    // -----------------------------------------------------------------------
-    final fakeLlm = FakeLlm();
-    const recipeService = RecipeService();
+      // -----------------------------------------------------------------------
+      // 2. Parse and save the recipe via RecipeService
+      // -----------------------------------------------------------------------
+      final fakeLlm = FakeLlm();
+      const recipeService = RecipeService();
 
-    final parsed = await recipeService.parse(
-      'Test Curry: 200g chicken breast. Chop onions. Fry chicken. Serve.',
-      fakeLlm,
-    );
+      final parsed = await recipeService.parse(
+        'Test Curry: 200g chicken breast. Chop onions. Fry chicken. Serve.',
+        fakeLlm,
+      );
 
-    expect(parsed.title, 'Test Curry');
-    expect(parsed.steps, hasLength(3));
+      expect(parsed.title, 'Test Curry');
+      expect(parsed.steps, hasLength(3));
 
-    final recipeId = await recipeService.save(parsed, recipeRepo);
-    final savedSteps = await recipeRepo.stepsFor(recipeId);
-    expect(savedSteps, ['Chop onions', 'Fry chicken', 'Serve']);
+      final recipeId = await recipeService.save(parsed, recipeRepo);
+      final savedSteps = await recipeRepo.stepsFor(recipeId);
+      expect(savedSteps, ['Chop onions', 'Fry chicken', 'Serve']);
 
-    // -----------------------------------------------------------------------
-    // 3. Build a CookingSession from the saved steps
-    //    Food lookup path: OFF → returns chicken data (source = off)
-    // -----------------------------------------------------------------------
-    final speech = FakeSpeech();
-    final logService = DailyLogService(logs: logRepo, targets: targetRepo);
+      // -----------------------------------------------------------------------
+      // 3. Build a CookingSession from the saved steps
+      //    Food lookup path: OFF → returns chicken data (source = off)
+      // -----------------------------------------------------------------------
+      final speech = FakeSpeech();
+      final logService = DailyLogService(logs: logRepo, targets: targetRepo);
 
-    final lookup = FoodLookup(
-      cache: FakeFoodCache(),
-      off: FakeOFF(),
-      usda: FakeUSDA(),
-      llm: fakeLlm,
-    );
+      final lookup = FoodLookup(
+        cache: FakeFoodCache(),
+        off: FakeOFF(),
+        usda: FakeUSDA(),
+        llm: fakeLlm,
+      );
 
-    final parser = IntentParser(llm: fakeLlm);
+      final parser = IntentParser(llm: fakeLlm);
 
-    final session = CookingSession(
-      steps: savedSteps,
-      speech: speech,
-      parser: parser,
-      lookup: lookup,
-      log: logService,
-      date: '2026-06-14',
-    );
+      final session = CookingSession(
+        steps: savedSteps,
+        speech: speech,
+        parser: parser,
+        lookup: lookup,
+        log: logService,
+        date: '2026-06-14',
+      );
 
-    // Session starts at step 0
-    expect(session.currentStep.value, 0);
+      // Session starts at step 0
+      expect(session.currentStep.value, 0);
 
-    // -----------------------------------------------------------------------
-    // 4. "next" → advances to step 1
-    //    Regex _nextRe matches "next" — no LLM call needed.
-    // -----------------------------------------------------------------------
-    await session.handleUtterance('next');
-    expect(session.currentStep.value, 1);
-    expect(speech.spoken.last, 'Fry chicken');
+      // -----------------------------------------------------------------------
+      // 4. "next" → advances to step 1
+      //    Regex _nextRe matches "next" — no LLM call needed.
+      // -----------------------------------------------------------------------
+      await session.handleUtterance('next');
+      expect(session.currentStep.value, 1);
+      expect(speech.spoken.last, 'Fry chicken');
 
-    // -----------------------------------------------------------------------
-    // 5. "I used 200 grams of chicken breast" → resolves macros and logs
-    //    Regex _logIngredientRe matches "200 grams of chicken breast" within
-    //    the utterance. No LLM call needed. OFF returns 165 kcal/100g.
-    //    200 g → 330 kcal, 62 g protein, 0 g carb, 7.2 g fat.
-    // -----------------------------------------------------------------------
-    await session.handleUtterance('I used 200 grams of chicken breast');
+      // -----------------------------------------------------------------------
+      // 5. "I used 200 grams of chicken breast" → resolves macros and logs
+      //    Regex _logIngredientRe matches "200 grams of chicken breast" within
+      //    the utterance. No LLM call needed. OFF returns 165 kcal/100g.
+      //    200 g → 330 kcal, 62 g protein, 0 g carb, 7.2 g fat.
+      // -----------------------------------------------------------------------
+      await session.handleUtterance('I used 200 grams of chicken breast');
 
-    // The session should have spoken a confirmation
-    expect(speech.spoken, hasLength(greaterThan(1)));
+      // The session should have spoken a confirmation
+      expect(speech.spoken, hasLength(greaterThan(1)));
 
-    // -----------------------------------------------------------------------
-    // 6. Assert the log entry
-    // -----------------------------------------------------------------------
-    final entries = await logRepo.forDate('2026-06-14');
-    expect(entries, hasLength(1));
+      // -----------------------------------------------------------------------
+      // 6. Assert the log entry
+      // -----------------------------------------------------------------------
+      final entries = await logRepo.forDate('2026-06-14');
+      expect(entries, hasLength(1));
 
-    final entry = entries.first;
-    expect(entry.foodName, 'chicken breast');
-    expect(entry.grams, closeTo(200, 0.001));
-    expect(entry.kcal, closeTo(330, 0.001));
-    expect(entry.protein, closeTo(62, 0.001));
-    expect(entry.carb, closeTo(0, 0.001));
-    expect(entry.fat, closeTo(7.2, 0.001));
-    expect(entry.source, 'off');
+      final entry = entries.first;
+      expect(entry.foodName, 'chicken breast');
+      expect(entry.grams, closeTo(200, 0.001));
+      expect(entry.kcal, closeTo(330, 0.001));
+      expect(entry.protein, closeTo(62, 0.001));
+      expect(entry.carb, closeTo(0, 0.001));
+      expect(entry.fat, closeTo(7.2, 0.001));
+      expect(entry.source, 'off');
 
-    // -----------------------------------------------------------------------
-    // 7. Assert DailyLogService.totals()
-    // -----------------------------------------------------------------------
-    final totals = await logService.totals('2026-06-14');
-    expect(totals.consumed.kcal, closeTo(330, 0.001));
-    expect(totals.consumed.protein, closeTo(62, 0.001));
-    expect(totals.consumed.carb, closeTo(0, 0.001));
-    expect(totals.consumed.fat, closeTo(7.2, 0.001));
-  });
+      // -----------------------------------------------------------------------
+      // 7. Assert DailyLogService.totals()
+      // -----------------------------------------------------------------------
+      final totals = await logService.totals('2026-06-14');
+      expect(totals.consumed.kcal, closeTo(330, 0.001));
+      expect(totals.consumed.protein, closeTo(62, 0.001));
+      expect(totals.consumed.carb, closeTo(0, 0.001));
+      expect(totals.consumed.fat, closeTo(7.2, 0.001));
+    },
+  );
 }

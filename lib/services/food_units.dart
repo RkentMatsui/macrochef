@@ -1,33 +1,43 @@
-/// Household measures offered in the food logger.
-///
-/// A unit with a non-null [gramsPerUnit] converts to grams by a fixed factor
-/// (g, kg, oz). The rest ([needsEstimate]) depend on the food — e.g. a cup of
-/// rice weighs far more than a cup of lettuce — so they need a per-food AI
-/// estimate of grams-per-unit via `FoodLookup.estimateUnitWeight`.
+enum FoodUnitFamily { mass, volume, count }
+
 class FoodUnit {
   final String label;
-  final double? gramsPerUnit;
-
-  const FoodUnit(this.label, this.gramsPerUnit);
-
-  /// True when this unit's gram weight varies by food and must be estimated.
-  bool get needsEstimate => gramsPerUnit == null;
-
+  final FoodUnitFamily family;
+  final double canonicalFactor;
+  const FoodUnit(this.label, this.family, this.canonicalFactor);
   @override
   String toString() => label;
 }
 
-/// The ordered set shown in the "Add food" unit dropdown: grams first (the
-/// default and prior behaviour), then weight, volume, then count units.
 const List<FoodUnit> kFoodUnits = [
-  FoodUnit('g', 1),
-  FoodUnit('kg', 1000),
-  FoodUnit('oz', 28.3495),
-  FoodUnit('cup', null),
-  FoodUnit('tbsp', null),
-  FoodUnit('tsp', null),
-  FoodUnit('ml', null),
-  FoodUnit('piece', null),
-  FoodUnit('slice', null),
-  FoodUnit('serving', null),
+  FoodUnit('g', FoodUnitFamily.mass, 1),
+  FoodUnit('kg', FoodUnitFamily.mass, 1000),
+  FoodUnit('oz', FoodUnitFamily.mass, 28.3495),
+  FoodUnit('ml', FoodUnitFamily.volume, 1),
+  FoodUnit('tsp', FoodUnitFamily.volume, 5),
+  FoodUnit('tbsp', FoodUnitFamily.volume, 15),
+  FoodUnit('cup', FoodUnitFamily.volume, 240),
+  FoodUnit('piece', FoodUnitFamily.count, 1),
+  FoodUnit('slice', FoodUnitFamily.count, 1),
+  FoodUnit('stick', FoodUnitFamily.count, 1),
+  FoodUnit('item', FoodUnitFamily.count, 1),
+  FoodUnit('serving', FoodUnitFamily.count, 1),
 ];
+
+FoodUnit? foodUnitByLabel(String raw) {
+  final label = raw.trim().toLowerCase();
+  for (final unit in kFoodUnits) {
+    if (unit.label == label) return unit;
+  }
+  return null;
+}
+
+double? convertFoodQuantity(double quantity, FoodUnit from, FoodUnit to) {
+  if (!quantity.isFinite || quantity <= 0 || from.family != to.family) {
+    return null;
+  }
+  if (from.family == FoodUnitFamily.count && from.label != to.label) {
+    return null;
+  }
+  return quantity * from.canonicalFactor / to.canonicalFactor;
+}

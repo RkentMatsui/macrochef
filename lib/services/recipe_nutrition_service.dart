@@ -4,9 +4,9 @@ import '../models/macros.dart';
 import '../models/recipe_breakdown.dart';
 import '../data/repositories/recipe_repository.dart';
 import '../services/food_lookup.dart';
-import '../services/macro_calculator.dart';
 import '../services/gram_parser.dart';
 import '../services/daily_log_service.dart';
+import '../services/portion_calculator.dart';
 import '../state/providers.dart' show todayDate;
 
 /// Resolves every recipe ingredient through the OFF->USDA->AI pipeline
@@ -52,7 +52,8 @@ class RecipeNutritionService {
     if (stored != null && stored.hash == signature) {
       try {
         final bd = RecipeBreakdown.fromJson(
-            jsonDecode(stored.json) as Map<String, dynamic>);
+          jsonDecode(stored.json) as Map<String, dynamic>,
+        );
         _breakdownCache[recipeId] = bd;
         return bd;
       } catch (_) {
@@ -64,70 +65,81 @@ class RecipeNutritionService {
     var total = MacroValues.zero;
     var totalGrams = 0.0;
     var counted = 0;
+    var allPhysicalGramsKnown = true;
 
     for (final ing in ingredients) {
-      final grams = GramParser.parseGrams(ing.quantity, ing.unit);
-
-      // Plain gram/kg path.
-      if (grams != null) {
-        final food = await lookup.resolve(ing.name);
-        if (food == null) {
-          rows.add(IngredientContribution(
+      final qty = GramParser.leadingNumber(ing.quantity);
+      if (qty == null) {
+        rows.add(
+          IngredientContribution(
             name: ing.name,
-            grams: grams,
+            grams: null,
+            macros: null,
+            status: ContributionStatus.unknownUnit,
+            unresolvedReason: PortionUnresolvedReason.invalidQuantity,
+          ),
+        );
+        continue;
+      }
+
+      var unit = (ing.unit ?? '').trim();
+      if (unit.isEmpty) unit = GramParser.trailingUnit(ing.quantity);
+      if (unit.isEmpty) unit = 'g';
+      final food = await lookup.resolve(ing.name);
+      if (food == null) {
+        rows.add(
+          IngredientContribution(
+            name: ing.name,
+            quantity: qty,
+            unit: unit,
+            grams: null,
             macros: null,
             status: ContributionStatus.noMatch,
-          ));
-          continue;
+          ),
+        );
+        continue;
+      }
+
+      final portion = PortionCalculator.calculate(
+        food: food,
+        quantity: qty,
+        unit: unit,
+      );
+      if (portion is ResolvedPortion) {
+        rows.add(
+          IngredientContribution(
+            name: ing.name,
+            quantity: portion.quantity,
+            unit: portion.unit,
+            grams: portion.physicalGrams,
+            macros: portion.macros,
+            status: ContributionStatus.counted,
+            source: food.source,
+            gramsPerPiece: food.gramsPerPiece,
+          ),
+        );
+        total = total + portion.macros;
+        if (portion.physicalGrams == null) {
+          allPhysicalGramsKnown = false;
+        } else {
+          totalGrams += portion.physicalGrams!;
         }
-        final m = MacroCalculator.forGrams(food.perHundred, grams);
-        rows.add(IngredientContribution(
-          name: ing.name,
-          grams: grams,
-          macros: m,
-          status: ContributionStatus.counted,
-          source: food.source,
-        ));
-        total = total + m;
-        totalGrams += grams;
         counted++;
         continue;
       }
 
-      // Piece/count path: "2 tortillas", "1 egg", "1 cup". Convert the count to
-      // grams using a per-piece weight (remembered on the food, else AI-guessed
-      // once and stored). Tolerates a count with a trailing unit ("2 eggs").
-      final qty = GramParser.leadingNumber(ing.quantity);
-      final food = qty == null ? null : await lookup.resolve(ing.name);
-      if (qty != null && food != null) {
-        final per = food.gramsPerPiece ??
-            await lookup.estimatePieceWeight(ing.name, ing.unit ?? 'piece');
-        if (per != null && per > 0) {
-          final g = qty * per;
-          final m = MacroCalculator.forGrams(food.perHundred, g);
-          rows.add(IngredientContribution(
-            name: ing.name,
-            grams: g,
-            macros: m,
-            status: ContributionStatus.counted,
-            source: food.source,
-            gramsPerPiece: per,
-            unit: ing.unit,
-          ));
-          total = total + m;
-          totalGrams += g;
-          counted++;
-          continue;
-        }
-      }
-
-      // Couldn't convert — surface it as not counted (unknown unit).
-      rows.add(IngredientContribution(
-        name: ing.name,
-        grams: null,
-        macros: null,
-        status: ContributionStatus.unknownUnit,
-      ));
+      final unresolved = portion as UnresolvedPortion;
+      rows.add(
+        IngredientContribution(
+          name: ing.name,
+          quantity: qty,
+          unit: unit,
+          grams: null,
+          macros: null,
+          status: ContributionStatus.unknownUnit,
+          unresolvedReason: unresolved.reason,
+        ),
+      );
     }
 
     final breakdown = RecipeBreakdown(
@@ -136,11 +148,15 @@ class RecipeNutritionService {
       totalGrams: totalGrams,
       countedCount: counted,
       totalCount: ingredients.length,
+      allPhysicalGramsKnown: allPhysicalGramsKnown,
     );
     _breakdownCache[recipeId] = breakdown;
     // Persist so the next open — even after a restart — is instant and offline.
     await repo.putNutritionCache(
-        recipeId, signature, jsonEncode(breakdown.toJson()));
+      recipeId,
+      signature,
+      jsonEncode(breakdown.toJson()),
+    );
     return breakdown;
   }
 
@@ -165,8 +181,10 @@ class RecipeNutritionService {
     final macros = RecipeMacros(
       total: total,
       perServing: perServing,
-      totalGrams: breakdown.totalGrams,
-      gramsPerServing: breakdown.totalGrams / s,
+      totalGrams: breakdown.allPhysicalGramsKnown ? breakdown.totalGrams : null,
+      gramsPerServing: breakdown.allPhysicalGramsKnown
+          ? breakdown.totalGrams / s
+          : null,
     );
     _cache[recipeId] = macros;
     return macros;
@@ -184,7 +202,7 @@ class RecipeNutritionService {
     await logs.log(
       date ?? todayDate(),
       name: recipeTitle,
-      grams: recipeMacros.gramsPerServing * n,
+      grams: (recipeMacros.gramsPerServing ?? 0) * n,
       macros: MacroValues(
         kcal: m.kcal * n,
         protein: m.protein * n,
@@ -193,6 +211,8 @@ class RecipeNutritionService {
       ),
       source: MacroSource.manual,
       recipeId: recipeId,
+      portionQuantity: n,
+      portionUnit: 'serving',
     );
   }
 
@@ -201,13 +221,12 @@ class RecipeNutritionService {
     required int recipeId,
     required String recipeTitle,
     required RecipeMacros recipeMacros,
-  }) =>
-      logMealServings(
-        recipeId: recipeId,
-        recipeTitle: recipeTitle,
-        recipeMacros: recipeMacros,
-        servingsEaten: 1,
-      );
+  }) => logMealServings(
+    recipeId: recipeId,
+    recipeTitle: recipeTitle,
+    recipeMacros: recipeMacros,
+    servingsEaten: 1,
+  );
 
   void invalidate(int recipeId) {
     _cache.remove(recipeId);

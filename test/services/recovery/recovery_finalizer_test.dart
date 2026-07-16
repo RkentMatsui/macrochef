@@ -7,12 +7,20 @@ import 'package:macrochef/services/recovery/recovery_finalizer.dart';
 import 'package:macrochef/services/shared_storage.dart';
 import 'package:path/path.dart' as p;
 
+final _sqliteHeader = <int>[
+  ...'SQLite format 3'.codeUnits,
+  0,
+  ...List.filled(84, 0),
+];
+
 class _Shared implements SharedStorage {
   final SharedDeleteResult deleteResult;
   bool failSave;
   bool failDelete;
   final List<String> saved = [];
   final List<String> deleted = [];
+  final List<SharedBackup> backups = [];
+  final Map<String, String> sources = {};
 
   _Shared({
     this.deleteResult = SharedDeleteResult.deleted,
@@ -24,7 +32,18 @@ class _Shared implements SharedStorage {
   Future<String> saveToDownloads(File source, String fileName) async {
     if (failSave) throw const FileSystemException('save failed');
     saved.add(fileName);
-    return 'content://fresh';
+    const id = 'content://fresh';
+    sources[id] = source.path;
+    backups.add(
+      SharedBackup(
+        id: id,
+        name: fileName,
+        addedAt: DateTime(2026, 7, 11, 12),
+        sizeBytes: await source.length(),
+        ownedByApp: true,
+      ),
+    );
+    return id;
   }
 
   @override
@@ -35,11 +54,12 @@ class _Shared implements SharedStorage {
   }
 
   @override
-  Future<List<SharedBackup>> listDownloads(String prefix) async => const [];
+  Future<List<SharedBackup>> listDownloads(String prefix) async =>
+      backups.where((backup) => backup.name.startsWith(prefix)).toList();
 
   @override
   Future<File> copyToPrivate(SharedBackup backup, File destination) async =>
-      destination;
+      File(sources[backup.id]!).copy(destination.path);
 }
 
 void main() {
@@ -58,7 +78,7 @@ void main() {
   RecoveryFinalizer build(_Shared shared) {
     final autoBackup = AutoBackupService(
       exportSnapshot: (destination) =>
-          destination.writeAsString('snapshot').then((_) => destination),
+          destination.writeAsBytes(_sqliteHeader).then((_) => destination),
       shared: shared,
       getSetting: (key) async => settings[key],
       setSetting: (key, value) async => settings[key] = value,

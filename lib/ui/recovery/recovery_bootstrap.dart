@@ -40,7 +40,7 @@ class RecoveryBootstrapDependencies {
     final candidateDirectory = Directory(
       p.join(support.path, 'recovery-candidates'),
     );
-    final sharedStorage = !kIsWeb && Platform.isAndroid
+    final SharedStorage sharedStorage = !kIsWeb && Platform.isAndroid
         ? const MediaStoreSharedStorage()
         : const NoopSharedStorage();
     return RecoveryBootstrapDependencies(

@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macrochef/models/chat.dart';
 import 'package:macrochef/providers/llm/claude_provider.dart';
@@ -19,9 +22,7 @@ void main() {
         dio: dio,
       );
 
-      final result = await provider.chat([
-        const ChatMessage('user', 'Hi'),
-      ]);
+      final result = await provider.chat([const ChatMessage('user', 'Hi')]);
 
       expect(result, 'Hello chef');
     });
@@ -40,9 +41,7 @@ void main() {
         dio: dio,
       );
 
-      final result = await provider.chat([
-        const ChatMessage('user', 'Hi'),
-      ]);
+      final result = await provider.chat([const ChatMessage('user', 'Hi')]);
 
       expect(result, 'Hello chef');
     });
@@ -87,17 +86,57 @@ void main() {
         dio: dio,
       );
 
-      final result = await provider.structured(
-        'Extract data',
-        {
-          'type': 'object',
-          'properties': {
-            'ok': {'type': 'boolean'}
-          },
+      final result = await provider.structured('Extract data', {
+        'type': 'object',
+        'properties': {
+          'ok': {'type': 'boolean'},
         },
-      );
+      });
 
       expect(result, {'ok': true});
     });
+
+    test(
+      'groundedStructured allows search before emitting structured output',
+      () async {
+        final dio = fakeDio({
+          'content': [
+            {
+              'type': 'web_search_result',
+              'url': 'https://example.com/nutrition',
+              'title': 'Nutrition',
+            },
+            {
+              'type': 'tool_use',
+              'name': 'emit',
+              'input': {'ok': true},
+            },
+          ],
+        });
+        Object? sent;
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              sent = options.data;
+              handler.next(options);
+            },
+          ),
+        );
+        final provider = ClaudeProvider(
+          apiKey: 'test-key',
+          model: 'claude-haiku-4-5',
+          dio: dio,
+        );
+
+        final result = await provider.groundedStructured('Find food', const {
+          'type': 'object',
+        });
+
+        final body = jsonDecode(sent as String) as Map<String, dynamic>;
+        expect(body.containsKey('tool_choice'), isFalse);
+        expect(jsonEncode(body['tools']), contains('web_search_20250305'));
+        expect(result.citations.single.url.host, 'example.com');
+      },
+    );
   });
 }

@@ -290,16 +290,20 @@ void main() {
     expect(find.text('Not downloaded'), findsOneWidget);
   });
 
-  testWidgets(
-    'Backup & Restore explains and offers automatic backup recovery',
-    (tester) async {
-      await pumpSettings(tester);
-      await openBackupSheet(tester);
+  testWidgets('Backup & Restore explains and offers automatic backup recovery', (
+    tester,
+  ) async {
+    await pumpSettings(tester);
+    await openBackupSheet(tester);
 
-      expect(find.text('Recover latest automatic backup'), findsOneWidget);
-      expect(find.textContaining('Downloads/MacroChef'), findsOneWidget);
-    },
-  );
+    expect(find.text('Recover latest automatic backup'), findsOneWidget);
+    expect(
+      find.text(
+        'Find the newest backup in Downloads/MacroChef and stage it for restart.',
+      ),
+      findsOneWidget,
+    );
+  });
 
   testWidgets('cancelling automatic recovery leaves state unchanged', (
     tester,

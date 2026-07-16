@@ -1417,6 +1417,143 @@ class $FoodCacheTable extends FoodCache
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _basisQuantityMeta = const VerificationMeta(
+    'basisQuantity',
+  );
+  @override
+  late final GeneratedColumn<double> basisQuantity = GeneratedColumn<double>(
+    'basis_quantity',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _basisUnitMeta = const VerificationMeta(
+    'basisUnit',
+  );
+  @override
+  late final GeneratedColumn<String> basisUnit = GeneratedColumn<String>(
+    'basis_unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _basisKcalMeta = const VerificationMeta(
+    'basisKcal',
+  );
+  @override
+  late final GeneratedColumn<double> basisKcal = GeneratedColumn<double>(
+    'basis_kcal',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _basisProteinMeta = const VerificationMeta(
+    'basisProtein',
+  );
+  @override
+  late final GeneratedColumn<double> basisProtein = GeneratedColumn<double>(
+    'basis_protein',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _basisCarbMeta = const VerificationMeta(
+    'basisCarb',
+  );
+  @override
+  late final GeneratedColumn<double> basisCarb = GeneratedColumn<double>(
+    'basis_carb',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _basisFatMeta = const VerificationMeta(
+    'basisFat',
+  );
+  @override
+  late final GeneratedColumn<double> basisFat = GeneratedColumn<double>(
+    'basis_fat',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _basisPhysicalGramsMeta =
+      const VerificationMeta('basisPhysicalGrams');
+  @override
+  late final GeneratedColumn<double> basisPhysicalGrams =
+      GeneratedColumn<double>(
+        'basis_physical_grams',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _basisNeedsReviewMeta = const VerificationMeta(
+    'basisNeedsReview',
+  );
+  @override
+  late final GeneratedColumn<bool> basisNeedsReview = GeneratedColumn<bool>(
+    'basis_needs_review',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("basis_needs_review" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _sourceUrlMeta = const VerificationMeta(
+    'sourceUrl',
+  );
+  @override
+  late final GeneratedColumn<String> sourceUrl = GeneratedColumn<String>(
+    'source_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceTitleMeta = const VerificationMeta(
+    'sourceTitle',
+  );
+  @override
+  late final GeneratedColumn<String> sourceTitle = GeneratedColumn<String>(
+    'source_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceRetrievedAtMeta = const VerificationMeta(
+    'sourceRetrievedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> sourceRetrievedAt =
+      GeneratedColumn<DateTime>(
+        'source_retrieved_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _sourceInferredFieldsMeta =
+      const VerificationMeta('sourceInferredFields');
+  @override
+  late final GeneratedColumn<String> sourceInferredFields =
+      GeneratedColumn<String>(
+        'source_inferred_fields',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1431,6 +1568,18 @@ class $FoodCacheTable extends FoodCache
     gramsPerPiece,
     fibre100,
     sodium100,
+    basisQuantity,
+    basisUnit,
+    basisKcal,
+    basisProtein,
+    basisCarb,
+    basisFat,
+    basisPhysicalGrams,
+    basisNeedsReview,
+    sourceUrl,
+    sourceTitle,
+    sourceRetrievedAt,
+    sourceInferredFields,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1531,6 +1680,99 @@ class $FoodCacheTable extends FoodCache
         sodium100.isAcceptableOrUnknown(data['sodium100']!, _sodium100Meta),
       );
     }
+    if (data.containsKey('basis_quantity')) {
+      context.handle(
+        _basisQuantityMeta,
+        basisQuantity.isAcceptableOrUnknown(
+          data['basis_quantity']!,
+          _basisQuantityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('basis_unit')) {
+      context.handle(
+        _basisUnitMeta,
+        basisUnit.isAcceptableOrUnknown(data['basis_unit']!, _basisUnitMeta),
+      );
+    }
+    if (data.containsKey('basis_kcal')) {
+      context.handle(
+        _basisKcalMeta,
+        basisKcal.isAcceptableOrUnknown(data['basis_kcal']!, _basisKcalMeta),
+      );
+    }
+    if (data.containsKey('basis_protein')) {
+      context.handle(
+        _basisProteinMeta,
+        basisProtein.isAcceptableOrUnknown(
+          data['basis_protein']!,
+          _basisProteinMeta,
+        ),
+      );
+    }
+    if (data.containsKey('basis_carb')) {
+      context.handle(
+        _basisCarbMeta,
+        basisCarb.isAcceptableOrUnknown(data['basis_carb']!, _basisCarbMeta),
+      );
+    }
+    if (data.containsKey('basis_fat')) {
+      context.handle(
+        _basisFatMeta,
+        basisFat.isAcceptableOrUnknown(data['basis_fat']!, _basisFatMeta),
+      );
+    }
+    if (data.containsKey('basis_physical_grams')) {
+      context.handle(
+        _basisPhysicalGramsMeta,
+        basisPhysicalGrams.isAcceptableOrUnknown(
+          data['basis_physical_grams']!,
+          _basisPhysicalGramsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('basis_needs_review')) {
+      context.handle(
+        _basisNeedsReviewMeta,
+        basisNeedsReview.isAcceptableOrUnknown(
+          data['basis_needs_review']!,
+          _basisNeedsReviewMeta,
+        ),
+      );
+    }
+    if (data.containsKey('source_url')) {
+      context.handle(
+        _sourceUrlMeta,
+        sourceUrl.isAcceptableOrUnknown(data['source_url']!, _sourceUrlMeta),
+      );
+    }
+    if (data.containsKey('source_title')) {
+      context.handle(
+        _sourceTitleMeta,
+        sourceTitle.isAcceptableOrUnknown(
+          data['source_title']!,
+          _sourceTitleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('source_retrieved_at')) {
+      context.handle(
+        _sourceRetrievedAtMeta,
+        sourceRetrievedAt.isAcceptableOrUnknown(
+          data['source_retrieved_at']!,
+          _sourceRetrievedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('source_inferred_fields')) {
+      context.handle(
+        _sourceInferredFieldsMeta,
+        sourceInferredFields.isAcceptableOrUnknown(
+          data['source_inferred_fields']!,
+          _sourceInferredFieldsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1588,6 +1830,54 @@ class $FoodCacheTable extends FoodCache
         DriftSqlType.double,
         data['${effectivePrefix}sodium100'],
       ),
+      basisQuantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}basis_quantity'],
+      ),
+      basisUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}basis_unit'],
+      ),
+      basisKcal: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}basis_kcal'],
+      ),
+      basisProtein: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}basis_protein'],
+      ),
+      basisCarb: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}basis_carb'],
+      ),
+      basisFat: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}basis_fat'],
+      ),
+      basisPhysicalGrams: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}basis_physical_grams'],
+      ),
+      basisNeedsReview: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}basis_needs_review'],
+      )!,
+      sourceUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_url'],
+      ),
+      sourceTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_title'],
+      ),
+      sourceRetrievedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}source_retrieved_at'],
+      ),
+      sourceInferredFields: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_inferred_fields'],
+      ),
     );
   }
 
@@ -1610,6 +1900,18 @@ class FoodCacheData extends DataClass implements Insertable<FoodCacheData> {
   final double? gramsPerPiece;
   final double? fibre100;
   final double? sodium100;
+  final double? basisQuantity;
+  final String? basisUnit;
+  final double? basisKcal;
+  final double? basisProtein;
+  final double? basisCarb;
+  final double? basisFat;
+  final double? basisPhysicalGrams;
+  final bool basisNeedsReview;
+  final String? sourceUrl;
+  final String? sourceTitle;
+  final DateTime? sourceRetrievedAt;
+  final String? sourceInferredFields;
   const FoodCacheData({
     required this.id,
     required this.name,
@@ -1623,6 +1925,18 @@ class FoodCacheData extends DataClass implements Insertable<FoodCacheData> {
     this.gramsPerPiece,
     this.fibre100,
     this.sodium100,
+    this.basisQuantity,
+    this.basisUnit,
+    this.basisKcal,
+    this.basisProtein,
+    this.basisCarb,
+    this.basisFat,
+    this.basisPhysicalGrams,
+    required this.basisNeedsReview,
+    this.sourceUrl,
+    this.sourceTitle,
+    this.sourceRetrievedAt,
+    this.sourceInferredFields,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1644,6 +1958,40 @@ class FoodCacheData extends DataClass implements Insertable<FoodCacheData> {
     }
     if (!nullToAbsent || sodium100 != null) {
       map['sodium100'] = Variable<double>(sodium100);
+    }
+    if (!nullToAbsent || basisQuantity != null) {
+      map['basis_quantity'] = Variable<double>(basisQuantity);
+    }
+    if (!nullToAbsent || basisUnit != null) {
+      map['basis_unit'] = Variable<String>(basisUnit);
+    }
+    if (!nullToAbsent || basisKcal != null) {
+      map['basis_kcal'] = Variable<double>(basisKcal);
+    }
+    if (!nullToAbsent || basisProtein != null) {
+      map['basis_protein'] = Variable<double>(basisProtein);
+    }
+    if (!nullToAbsent || basisCarb != null) {
+      map['basis_carb'] = Variable<double>(basisCarb);
+    }
+    if (!nullToAbsent || basisFat != null) {
+      map['basis_fat'] = Variable<double>(basisFat);
+    }
+    if (!nullToAbsent || basisPhysicalGrams != null) {
+      map['basis_physical_grams'] = Variable<double>(basisPhysicalGrams);
+    }
+    map['basis_needs_review'] = Variable<bool>(basisNeedsReview);
+    if (!nullToAbsent || sourceUrl != null) {
+      map['source_url'] = Variable<String>(sourceUrl);
+    }
+    if (!nullToAbsent || sourceTitle != null) {
+      map['source_title'] = Variable<String>(sourceTitle);
+    }
+    if (!nullToAbsent || sourceRetrievedAt != null) {
+      map['source_retrieved_at'] = Variable<DateTime>(sourceRetrievedAt);
+    }
+    if (!nullToAbsent || sourceInferredFields != null) {
+      map['source_inferred_fields'] = Variable<String>(sourceInferredFields);
     }
     return map;
   }
@@ -1668,6 +2016,40 @@ class FoodCacheData extends DataClass implements Insertable<FoodCacheData> {
       sodium100: sodium100 == null && nullToAbsent
           ? const Value.absent()
           : Value(sodium100),
+      basisQuantity: basisQuantity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(basisQuantity),
+      basisUnit: basisUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(basisUnit),
+      basisKcal: basisKcal == null && nullToAbsent
+          ? const Value.absent()
+          : Value(basisKcal),
+      basisProtein: basisProtein == null && nullToAbsent
+          ? const Value.absent()
+          : Value(basisProtein),
+      basisCarb: basisCarb == null && nullToAbsent
+          ? const Value.absent()
+          : Value(basisCarb),
+      basisFat: basisFat == null && nullToAbsent
+          ? const Value.absent()
+          : Value(basisFat),
+      basisPhysicalGrams: basisPhysicalGrams == null && nullToAbsent
+          ? const Value.absent()
+          : Value(basisPhysicalGrams),
+      basisNeedsReview: Value(basisNeedsReview),
+      sourceUrl: sourceUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceUrl),
+      sourceTitle: sourceTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceTitle),
+      sourceRetrievedAt: sourceRetrievedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceRetrievedAt),
+      sourceInferredFields: sourceInferredFields == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceInferredFields),
     );
   }
 
@@ -1689,6 +2071,24 @@ class FoodCacheData extends DataClass implements Insertable<FoodCacheData> {
       gramsPerPiece: serializer.fromJson<double?>(json['gramsPerPiece']),
       fibre100: serializer.fromJson<double?>(json['fibre100']),
       sodium100: serializer.fromJson<double?>(json['sodium100']),
+      basisQuantity: serializer.fromJson<double?>(json['basisQuantity']),
+      basisUnit: serializer.fromJson<String?>(json['basisUnit']),
+      basisKcal: serializer.fromJson<double?>(json['basisKcal']),
+      basisProtein: serializer.fromJson<double?>(json['basisProtein']),
+      basisCarb: serializer.fromJson<double?>(json['basisCarb']),
+      basisFat: serializer.fromJson<double?>(json['basisFat']),
+      basisPhysicalGrams: serializer.fromJson<double?>(
+        json['basisPhysicalGrams'],
+      ),
+      basisNeedsReview: serializer.fromJson<bool>(json['basisNeedsReview']),
+      sourceUrl: serializer.fromJson<String?>(json['sourceUrl']),
+      sourceTitle: serializer.fromJson<String?>(json['sourceTitle']),
+      sourceRetrievedAt: serializer.fromJson<DateTime?>(
+        json['sourceRetrievedAt'],
+      ),
+      sourceInferredFields: serializer.fromJson<String?>(
+        json['sourceInferredFields'],
+      ),
     );
   }
   @override
@@ -1707,6 +2107,18 @@ class FoodCacheData extends DataClass implements Insertable<FoodCacheData> {
       'gramsPerPiece': serializer.toJson<double?>(gramsPerPiece),
       'fibre100': serializer.toJson<double?>(fibre100),
       'sodium100': serializer.toJson<double?>(sodium100),
+      'basisQuantity': serializer.toJson<double?>(basisQuantity),
+      'basisUnit': serializer.toJson<String?>(basisUnit),
+      'basisKcal': serializer.toJson<double?>(basisKcal),
+      'basisProtein': serializer.toJson<double?>(basisProtein),
+      'basisCarb': serializer.toJson<double?>(basisCarb),
+      'basisFat': serializer.toJson<double?>(basisFat),
+      'basisPhysicalGrams': serializer.toJson<double?>(basisPhysicalGrams),
+      'basisNeedsReview': serializer.toJson<bool>(basisNeedsReview),
+      'sourceUrl': serializer.toJson<String?>(sourceUrl),
+      'sourceTitle': serializer.toJson<String?>(sourceTitle),
+      'sourceRetrievedAt': serializer.toJson<DateTime?>(sourceRetrievedAt),
+      'sourceInferredFields': serializer.toJson<String?>(sourceInferredFields),
     };
   }
 
@@ -1723,6 +2135,18 @@ class FoodCacheData extends DataClass implements Insertable<FoodCacheData> {
     Value<double?> gramsPerPiece = const Value.absent(),
     Value<double?> fibre100 = const Value.absent(),
     Value<double?> sodium100 = const Value.absent(),
+    Value<double?> basisQuantity = const Value.absent(),
+    Value<String?> basisUnit = const Value.absent(),
+    Value<double?> basisKcal = const Value.absent(),
+    Value<double?> basisProtein = const Value.absent(),
+    Value<double?> basisCarb = const Value.absent(),
+    Value<double?> basisFat = const Value.absent(),
+    Value<double?> basisPhysicalGrams = const Value.absent(),
+    bool? basisNeedsReview,
+    Value<String?> sourceUrl = const Value.absent(),
+    Value<String?> sourceTitle = const Value.absent(),
+    Value<DateTime?> sourceRetrievedAt = const Value.absent(),
+    Value<String?> sourceInferredFields = const Value.absent(),
   }) => FoodCacheData(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -1738,6 +2162,26 @@ class FoodCacheData extends DataClass implements Insertable<FoodCacheData> {
         : this.gramsPerPiece,
     fibre100: fibre100.present ? fibre100.value : this.fibre100,
     sodium100: sodium100.present ? sodium100.value : this.sodium100,
+    basisQuantity: basisQuantity.present
+        ? basisQuantity.value
+        : this.basisQuantity,
+    basisUnit: basisUnit.present ? basisUnit.value : this.basisUnit,
+    basisKcal: basisKcal.present ? basisKcal.value : this.basisKcal,
+    basisProtein: basisProtein.present ? basisProtein.value : this.basisProtein,
+    basisCarb: basisCarb.present ? basisCarb.value : this.basisCarb,
+    basisFat: basisFat.present ? basisFat.value : this.basisFat,
+    basisPhysicalGrams: basisPhysicalGrams.present
+        ? basisPhysicalGrams.value
+        : this.basisPhysicalGrams,
+    basisNeedsReview: basisNeedsReview ?? this.basisNeedsReview,
+    sourceUrl: sourceUrl.present ? sourceUrl.value : this.sourceUrl,
+    sourceTitle: sourceTitle.present ? sourceTitle.value : this.sourceTitle,
+    sourceRetrievedAt: sourceRetrievedAt.present
+        ? sourceRetrievedAt.value
+        : this.sourceRetrievedAt,
+    sourceInferredFields: sourceInferredFields.present
+        ? sourceInferredFields.value
+        : this.sourceInferredFields,
   );
   FoodCacheData copyWithCompanion(FoodCacheCompanion data) {
     return FoodCacheData(
@@ -1761,6 +2205,32 @@ class FoodCacheData extends DataClass implements Insertable<FoodCacheData> {
           : this.gramsPerPiece,
       fibre100: data.fibre100.present ? data.fibre100.value : this.fibre100,
       sodium100: data.sodium100.present ? data.sodium100.value : this.sodium100,
+      basisQuantity: data.basisQuantity.present
+          ? data.basisQuantity.value
+          : this.basisQuantity,
+      basisUnit: data.basisUnit.present ? data.basisUnit.value : this.basisUnit,
+      basisKcal: data.basisKcal.present ? data.basisKcal.value : this.basisKcal,
+      basisProtein: data.basisProtein.present
+          ? data.basisProtein.value
+          : this.basisProtein,
+      basisCarb: data.basisCarb.present ? data.basisCarb.value : this.basisCarb,
+      basisFat: data.basisFat.present ? data.basisFat.value : this.basisFat,
+      basisPhysicalGrams: data.basisPhysicalGrams.present
+          ? data.basisPhysicalGrams.value
+          : this.basisPhysicalGrams,
+      basisNeedsReview: data.basisNeedsReview.present
+          ? data.basisNeedsReview.value
+          : this.basisNeedsReview,
+      sourceUrl: data.sourceUrl.present ? data.sourceUrl.value : this.sourceUrl,
+      sourceTitle: data.sourceTitle.present
+          ? data.sourceTitle.value
+          : this.sourceTitle,
+      sourceRetrievedAt: data.sourceRetrievedAt.present
+          ? data.sourceRetrievedAt.value
+          : this.sourceRetrievedAt,
+      sourceInferredFields: data.sourceInferredFields.present
+          ? data.sourceInferredFields.value
+          : this.sourceInferredFields,
     );
   }
 
@@ -1778,13 +2248,25 @@ class FoodCacheData extends DataClass implements Insertable<FoodCacheData> {
           ..write('userOverride: $userOverride, ')
           ..write('gramsPerPiece: $gramsPerPiece, ')
           ..write('fibre100: $fibre100, ')
-          ..write('sodium100: $sodium100')
+          ..write('sodium100: $sodium100, ')
+          ..write('basisQuantity: $basisQuantity, ')
+          ..write('basisUnit: $basisUnit, ')
+          ..write('basisKcal: $basisKcal, ')
+          ..write('basisProtein: $basisProtein, ')
+          ..write('basisCarb: $basisCarb, ')
+          ..write('basisFat: $basisFat, ')
+          ..write('basisPhysicalGrams: $basisPhysicalGrams, ')
+          ..write('basisNeedsReview: $basisNeedsReview, ')
+          ..write('sourceUrl: $sourceUrl, ')
+          ..write('sourceTitle: $sourceTitle, ')
+          ..write('sourceRetrievedAt: $sourceRetrievedAt, ')
+          ..write('sourceInferredFields: $sourceInferredFields')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     name,
     source,
@@ -1797,7 +2279,19 @@ class FoodCacheData extends DataClass implements Insertable<FoodCacheData> {
     gramsPerPiece,
     fibre100,
     sodium100,
-  );
+    basisQuantity,
+    basisUnit,
+    basisKcal,
+    basisProtein,
+    basisCarb,
+    basisFat,
+    basisPhysicalGrams,
+    basisNeedsReview,
+    sourceUrl,
+    sourceTitle,
+    sourceRetrievedAt,
+    sourceInferredFields,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1813,7 +2307,19 @@ class FoodCacheData extends DataClass implements Insertable<FoodCacheData> {
           other.userOverride == this.userOverride &&
           other.gramsPerPiece == this.gramsPerPiece &&
           other.fibre100 == this.fibre100 &&
-          other.sodium100 == this.sodium100);
+          other.sodium100 == this.sodium100 &&
+          other.basisQuantity == this.basisQuantity &&
+          other.basisUnit == this.basisUnit &&
+          other.basisKcal == this.basisKcal &&
+          other.basisProtein == this.basisProtein &&
+          other.basisCarb == this.basisCarb &&
+          other.basisFat == this.basisFat &&
+          other.basisPhysicalGrams == this.basisPhysicalGrams &&
+          other.basisNeedsReview == this.basisNeedsReview &&
+          other.sourceUrl == this.sourceUrl &&
+          other.sourceTitle == this.sourceTitle &&
+          other.sourceRetrievedAt == this.sourceRetrievedAt &&
+          other.sourceInferredFields == this.sourceInferredFields);
 }
 
 class FoodCacheCompanion extends UpdateCompanion<FoodCacheData> {
@@ -1829,6 +2335,18 @@ class FoodCacheCompanion extends UpdateCompanion<FoodCacheData> {
   final Value<double?> gramsPerPiece;
   final Value<double?> fibre100;
   final Value<double?> sodium100;
+  final Value<double?> basisQuantity;
+  final Value<String?> basisUnit;
+  final Value<double?> basisKcal;
+  final Value<double?> basisProtein;
+  final Value<double?> basisCarb;
+  final Value<double?> basisFat;
+  final Value<double?> basisPhysicalGrams;
+  final Value<bool> basisNeedsReview;
+  final Value<String?> sourceUrl;
+  final Value<String?> sourceTitle;
+  final Value<DateTime?> sourceRetrievedAt;
+  final Value<String?> sourceInferredFields;
   const FoodCacheCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -1842,6 +2360,18 @@ class FoodCacheCompanion extends UpdateCompanion<FoodCacheData> {
     this.gramsPerPiece = const Value.absent(),
     this.fibre100 = const Value.absent(),
     this.sodium100 = const Value.absent(),
+    this.basisQuantity = const Value.absent(),
+    this.basisUnit = const Value.absent(),
+    this.basisKcal = const Value.absent(),
+    this.basisProtein = const Value.absent(),
+    this.basisCarb = const Value.absent(),
+    this.basisFat = const Value.absent(),
+    this.basisPhysicalGrams = const Value.absent(),
+    this.basisNeedsReview = const Value.absent(),
+    this.sourceUrl = const Value.absent(),
+    this.sourceTitle = const Value.absent(),
+    this.sourceRetrievedAt = const Value.absent(),
+    this.sourceInferredFields = const Value.absent(),
   });
   FoodCacheCompanion.insert({
     this.id = const Value.absent(),
@@ -1856,6 +2386,18 @@ class FoodCacheCompanion extends UpdateCompanion<FoodCacheData> {
     this.gramsPerPiece = const Value.absent(),
     this.fibre100 = const Value.absent(),
     this.sodium100 = const Value.absent(),
+    this.basisQuantity = const Value.absent(),
+    this.basisUnit = const Value.absent(),
+    this.basisKcal = const Value.absent(),
+    this.basisProtein = const Value.absent(),
+    this.basisCarb = const Value.absent(),
+    this.basisFat = const Value.absent(),
+    this.basisPhysicalGrams = const Value.absent(),
+    this.basisNeedsReview = const Value.absent(),
+    this.sourceUrl = const Value.absent(),
+    this.sourceTitle = const Value.absent(),
+    this.sourceRetrievedAt = const Value.absent(),
+    this.sourceInferredFields = const Value.absent(),
   }) : name = Value(name),
        source = Value(source),
        kcal100 = Value(kcal100),
@@ -1875,6 +2417,18 @@ class FoodCacheCompanion extends UpdateCompanion<FoodCacheData> {
     Expression<double>? gramsPerPiece,
     Expression<double>? fibre100,
     Expression<double>? sodium100,
+    Expression<double>? basisQuantity,
+    Expression<String>? basisUnit,
+    Expression<double>? basisKcal,
+    Expression<double>? basisProtein,
+    Expression<double>? basisCarb,
+    Expression<double>? basisFat,
+    Expression<double>? basisPhysicalGrams,
+    Expression<bool>? basisNeedsReview,
+    Expression<String>? sourceUrl,
+    Expression<String>? sourceTitle,
+    Expression<DateTime>? sourceRetrievedAt,
+    Expression<String>? sourceInferredFields,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1889,6 +2443,20 @@ class FoodCacheCompanion extends UpdateCompanion<FoodCacheData> {
       if (gramsPerPiece != null) 'grams_per_piece': gramsPerPiece,
       if (fibre100 != null) 'fibre100': fibre100,
       if (sodium100 != null) 'sodium100': sodium100,
+      if (basisQuantity != null) 'basis_quantity': basisQuantity,
+      if (basisUnit != null) 'basis_unit': basisUnit,
+      if (basisKcal != null) 'basis_kcal': basisKcal,
+      if (basisProtein != null) 'basis_protein': basisProtein,
+      if (basisCarb != null) 'basis_carb': basisCarb,
+      if (basisFat != null) 'basis_fat': basisFat,
+      if (basisPhysicalGrams != null)
+        'basis_physical_grams': basisPhysicalGrams,
+      if (basisNeedsReview != null) 'basis_needs_review': basisNeedsReview,
+      if (sourceUrl != null) 'source_url': sourceUrl,
+      if (sourceTitle != null) 'source_title': sourceTitle,
+      if (sourceRetrievedAt != null) 'source_retrieved_at': sourceRetrievedAt,
+      if (sourceInferredFields != null)
+        'source_inferred_fields': sourceInferredFields,
     });
   }
 
@@ -1905,6 +2473,18 @@ class FoodCacheCompanion extends UpdateCompanion<FoodCacheData> {
     Value<double?>? gramsPerPiece,
     Value<double?>? fibre100,
     Value<double?>? sodium100,
+    Value<double?>? basisQuantity,
+    Value<String?>? basisUnit,
+    Value<double?>? basisKcal,
+    Value<double?>? basisProtein,
+    Value<double?>? basisCarb,
+    Value<double?>? basisFat,
+    Value<double?>? basisPhysicalGrams,
+    Value<bool>? basisNeedsReview,
+    Value<String?>? sourceUrl,
+    Value<String?>? sourceTitle,
+    Value<DateTime?>? sourceRetrievedAt,
+    Value<String?>? sourceInferredFields,
   }) {
     return FoodCacheCompanion(
       id: id ?? this.id,
@@ -1919,6 +2499,18 @@ class FoodCacheCompanion extends UpdateCompanion<FoodCacheData> {
       gramsPerPiece: gramsPerPiece ?? this.gramsPerPiece,
       fibre100: fibre100 ?? this.fibre100,
       sodium100: sodium100 ?? this.sodium100,
+      basisQuantity: basisQuantity ?? this.basisQuantity,
+      basisUnit: basisUnit ?? this.basisUnit,
+      basisKcal: basisKcal ?? this.basisKcal,
+      basisProtein: basisProtein ?? this.basisProtein,
+      basisCarb: basisCarb ?? this.basisCarb,
+      basisFat: basisFat ?? this.basisFat,
+      basisPhysicalGrams: basisPhysicalGrams ?? this.basisPhysicalGrams,
+      basisNeedsReview: basisNeedsReview ?? this.basisNeedsReview,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
+      sourceTitle: sourceTitle ?? this.sourceTitle,
+      sourceRetrievedAt: sourceRetrievedAt ?? this.sourceRetrievedAt,
+      sourceInferredFields: sourceInferredFields ?? this.sourceInferredFields,
     );
   }
 
@@ -1961,6 +2553,44 @@ class FoodCacheCompanion extends UpdateCompanion<FoodCacheData> {
     if (sodium100.present) {
       map['sodium100'] = Variable<double>(sodium100.value);
     }
+    if (basisQuantity.present) {
+      map['basis_quantity'] = Variable<double>(basisQuantity.value);
+    }
+    if (basisUnit.present) {
+      map['basis_unit'] = Variable<String>(basisUnit.value);
+    }
+    if (basisKcal.present) {
+      map['basis_kcal'] = Variable<double>(basisKcal.value);
+    }
+    if (basisProtein.present) {
+      map['basis_protein'] = Variable<double>(basisProtein.value);
+    }
+    if (basisCarb.present) {
+      map['basis_carb'] = Variable<double>(basisCarb.value);
+    }
+    if (basisFat.present) {
+      map['basis_fat'] = Variable<double>(basisFat.value);
+    }
+    if (basisPhysicalGrams.present) {
+      map['basis_physical_grams'] = Variable<double>(basisPhysicalGrams.value);
+    }
+    if (basisNeedsReview.present) {
+      map['basis_needs_review'] = Variable<bool>(basisNeedsReview.value);
+    }
+    if (sourceUrl.present) {
+      map['source_url'] = Variable<String>(sourceUrl.value);
+    }
+    if (sourceTitle.present) {
+      map['source_title'] = Variable<String>(sourceTitle.value);
+    }
+    if (sourceRetrievedAt.present) {
+      map['source_retrieved_at'] = Variable<DateTime>(sourceRetrievedAt.value);
+    }
+    if (sourceInferredFields.present) {
+      map['source_inferred_fields'] = Variable<String>(
+        sourceInferredFields.value,
+      );
+    }
     return map;
   }
 
@@ -1978,7 +2608,19 @@ class FoodCacheCompanion extends UpdateCompanion<FoodCacheData> {
           ..write('userOverride: $userOverride, ')
           ..write('gramsPerPiece: $gramsPerPiece, ')
           ..write('fibre100: $fibre100, ')
-          ..write('sodium100: $sodium100')
+          ..write('sodium100: $sodium100, ')
+          ..write('basisQuantity: $basisQuantity, ')
+          ..write('basisUnit: $basisUnit, ')
+          ..write('basisKcal: $basisKcal, ')
+          ..write('basisProtein: $basisProtein, ')
+          ..write('basisCarb: $basisCarb, ')
+          ..write('basisFat: $basisFat, ')
+          ..write('basisPhysicalGrams: $basisPhysicalGrams, ')
+          ..write('basisNeedsReview: $basisNeedsReview, ')
+          ..write('sourceUrl: $sourceUrl, ')
+          ..write('sourceTitle: $sourceTitle, ')
+          ..write('sourceRetrievedAt: $sourceRetrievedAt, ')
+          ..write('sourceInferredFields: $sourceInferredFields')
           ..write(')'))
         .toString();
   }
@@ -2099,6 +2741,28 @@ class $LogEntriesTable extends LogEntries
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _portionQuantityMeta = const VerificationMeta(
+    'portionQuantity',
+  );
+  @override
+  late final GeneratedColumn<double> portionQuantity = GeneratedColumn<double>(
+    'portion_quantity',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _portionUnitMeta = const VerificationMeta(
+    'portionUnit',
+  );
+  @override
+  late final GeneratedColumn<String> portionUnit = GeneratedColumn<String>(
+    'portion_unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2112,6 +2776,8 @@ class $LogEntriesTable extends LogEntries
     fibre,
     source,
     recipeId,
+    portionQuantity,
+    portionUnit,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2204,6 +2870,24 @@ class $LogEntriesTable extends LogEntries
         recipeId.isAcceptableOrUnknown(data['recipe_id']!, _recipeIdMeta),
       );
     }
+    if (data.containsKey('portion_quantity')) {
+      context.handle(
+        _portionQuantityMeta,
+        portionQuantity.isAcceptableOrUnknown(
+          data['portion_quantity']!,
+          _portionQuantityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('portion_unit')) {
+      context.handle(
+        _portionUnitMeta,
+        portionUnit.isAcceptableOrUnknown(
+          data['portion_unit']!,
+          _portionUnitMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2257,6 +2941,14 @@ class $LogEntriesTable extends LogEntries
         DriftSqlType.int,
         data['${effectivePrefix}recipe_id'],
       ),
+      portionQuantity: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}portion_quantity'],
+      ),
+      portionUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}portion_unit'],
+      ),
     );
   }
 
@@ -2278,6 +2970,8 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
   final double? fibre;
   final String source;
   final int? recipeId;
+  final double? portionQuantity;
+  final String? portionUnit;
   const LogEntry({
     required this.id,
     required this.date,
@@ -2290,6 +2984,8 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
     this.fibre,
     required this.source,
     this.recipeId,
+    this.portionQuantity,
+    this.portionUnit,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2308,6 +3004,12 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
     map['source'] = Variable<String>(source);
     if (!nullToAbsent || recipeId != null) {
       map['recipe_id'] = Variable<int>(recipeId);
+    }
+    if (!nullToAbsent || portionQuantity != null) {
+      map['portion_quantity'] = Variable<double>(portionQuantity);
+    }
+    if (!nullToAbsent || portionUnit != null) {
+      map['portion_unit'] = Variable<String>(portionUnit);
     }
     return map;
   }
@@ -2329,6 +3031,12 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
       recipeId: recipeId == null && nullToAbsent
           ? const Value.absent()
           : Value(recipeId),
+      portionQuantity: portionQuantity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(portionQuantity),
+      portionUnit: portionUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(portionUnit),
     );
   }
 
@@ -2349,6 +3057,8 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
       fibre: serializer.fromJson<double?>(json['fibre']),
       source: serializer.fromJson<String>(json['source']),
       recipeId: serializer.fromJson<int?>(json['recipeId']),
+      portionQuantity: serializer.fromJson<double?>(json['portionQuantity']),
+      portionUnit: serializer.fromJson<String?>(json['portionUnit']),
     );
   }
   @override
@@ -2366,6 +3076,8 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
       'fibre': serializer.toJson<double?>(fibre),
       'source': serializer.toJson<String>(source),
       'recipeId': serializer.toJson<int?>(recipeId),
+      'portionQuantity': serializer.toJson<double?>(portionQuantity),
+      'portionUnit': serializer.toJson<String?>(portionUnit),
     };
   }
 
@@ -2381,6 +3093,8 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
     Value<double?> fibre = const Value.absent(),
     String? source,
     Value<int?> recipeId = const Value.absent(),
+    Value<double?> portionQuantity = const Value.absent(),
+    Value<String?> portionUnit = const Value.absent(),
   }) => LogEntry(
     id: id ?? this.id,
     date: date ?? this.date,
@@ -2393,6 +3107,10 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
     fibre: fibre.present ? fibre.value : this.fibre,
     source: source ?? this.source,
     recipeId: recipeId.present ? recipeId.value : this.recipeId,
+    portionQuantity: portionQuantity.present
+        ? portionQuantity.value
+        : this.portionQuantity,
+    portionUnit: portionUnit.present ? portionUnit.value : this.portionUnit,
   );
   LogEntry copyWithCompanion(LogEntriesCompanion data) {
     return LogEntry(
@@ -2407,6 +3125,12 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
       fibre: data.fibre.present ? data.fibre.value : this.fibre,
       source: data.source.present ? data.source.value : this.source,
       recipeId: data.recipeId.present ? data.recipeId.value : this.recipeId,
+      portionQuantity: data.portionQuantity.present
+          ? data.portionQuantity.value
+          : this.portionQuantity,
+      portionUnit: data.portionUnit.present
+          ? data.portionUnit.value
+          : this.portionUnit,
     );
   }
 
@@ -2423,7 +3147,9 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
           ..write('fat: $fat, ')
           ..write('fibre: $fibre, ')
           ..write('source: $source, ')
-          ..write('recipeId: $recipeId')
+          ..write('recipeId: $recipeId, ')
+          ..write('portionQuantity: $portionQuantity, ')
+          ..write('portionUnit: $portionUnit')
           ..write(')'))
         .toString();
   }
@@ -2441,6 +3167,8 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
     fibre,
     source,
     recipeId,
+    portionQuantity,
+    portionUnit,
   );
   @override
   bool operator ==(Object other) =>
@@ -2456,7 +3184,9 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
           other.fat == this.fat &&
           other.fibre == this.fibre &&
           other.source == this.source &&
-          other.recipeId == this.recipeId);
+          other.recipeId == this.recipeId &&
+          other.portionQuantity == this.portionQuantity &&
+          other.portionUnit == this.portionUnit);
 }
 
 class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
@@ -2471,6 +3201,8 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
   final Value<double?> fibre;
   final Value<String> source;
   final Value<int?> recipeId;
+  final Value<double?> portionQuantity;
+  final Value<String?> portionUnit;
   const LogEntriesCompanion({
     this.id = const Value.absent(),
     this.date = const Value.absent(),
@@ -2483,6 +3215,8 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
     this.fibre = const Value.absent(),
     this.source = const Value.absent(),
     this.recipeId = const Value.absent(),
+    this.portionQuantity = const Value.absent(),
+    this.portionUnit = const Value.absent(),
   });
   LogEntriesCompanion.insert({
     this.id = const Value.absent(),
@@ -2496,6 +3230,8 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
     this.fibre = const Value.absent(),
     required String source,
     this.recipeId = const Value.absent(),
+    this.portionQuantity = const Value.absent(),
+    this.portionUnit = const Value.absent(),
   }) : date = Value(date),
        foodName = Value(foodName),
        grams = Value(grams),
@@ -2516,6 +3252,8 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
     Expression<double>? fibre,
     Expression<String>? source,
     Expression<int>? recipeId,
+    Expression<double>? portionQuantity,
+    Expression<String>? portionUnit,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2529,6 +3267,8 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
       if (fibre != null) 'fibre': fibre,
       if (source != null) 'source': source,
       if (recipeId != null) 'recipe_id': recipeId,
+      if (portionQuantity != null) 'portion_quantity': portionQuantity,
+      if (portionUnit != null) 'portion_unit': portionUnit,
     });
   }
 
@@ -2544,6 +3284,8 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
     Value<double?>? fibre,
     Value<String>? source,
     Value<int?>? recipeId,
+    Value<double?>? portionQuantity,
+    Value<String?>? portionUnit,
   }) {
     return LogEntriesCompanion(
       id: id ?? this.id,
@@ -2557,6 +3299,8 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
       fibre: fibre ?? this.fibre,
       source: source ?? this.source,
       recipeId: recipeId ?? this.recipeId,
+      portionQuantity: portionQuantity ?? this.portionQuantity,
+      portionUnit: portionUnit ?? this.portionUnit,
     );
   }
 
@@ -2596,6 +3340,12 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
     if (recipeId.present) {
       map['recipe_id'] = Variable<int>(recipeId.value);
     }
+    if (portionQuantity.present) {
+      map['portion_quantity'] = Variable<double>(portionQuantity.value);
+    }
+    if (portionUnit.present) {
+      map['portion_unit'] = Variable<String>(portionUnit.value);
+    }
     return map;
   }
 
@@ -2612,7 +3362,9 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
           ..write('fat: $fat, ')
           ..write('fibre: $fibre, ')
           ..write('source: $source, ')
-          ..write('recipeId: $recipeId')
+          ..write('recipeId: $recipeId, ')
+          ..write('portionQuantity: $portionQuantity, ')
+          ..write('portionUnit: $portionUnit')
           ..write(')'))
         .toString();
   }
@@ -2968,6 +3720,893 @@ class DailyTargetsTableCompanion
           ..write('carb: $carb, ')
           ..write('fat: $fat, ')
           ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AdaptiveTargetsTable extends AdaptiveTargets
+    with TableInfo<$AdaptiveTargetsTable, AdaptiveTarget> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AdaptiveTargetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _effectiveFromMeta = const VerificationMeta(
+    'effectiveFrom',
+  );
+  @override
+  late final GeneratedColumn<String> effectiveFrom = GeneratedColumn<String>(
+    'effective_from',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _calculatedThroughMeta = const VerificationMeta(
+    'calculatedThrough',
+  );
+  @override
+  late final GeneratedColumn<String> calculatedThrough =
+      GeneratedColumn<String>(
+        'calculated_through',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _kcalMeta = const VerificationMeta('kcal');
+  @override
+  late final GeneratedColumn<double> kcal = GeneratedColumn<double>(
+    'kcal',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _proteinMeta = const VerificationMeta(
+    'protein',
+  );
+  @override
+  late final GeneratedColumn<double> protein = GeneratedColumn<double>(
+    'protein',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _carbMeta = const VerificationMeta('carb');
+  @override
+  late final GeneratedColumn<double> carb = GeneratedColumn<double>(
+    'carb',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fatMeta = const VerificationMeta('fat');
+  @override
+  late final GeneratedColumn<double> fat = GeneratedColumn<double>(
+    'fat',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _windowStartMeta = const VerificationMeta(
+    'windowStart',
+  );
+  @override
+  late final GeneratedColumn<String> windowStart = GeneratedColumn<String>(
+    'window_start',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _qualifiedIntakeDaysMeta =
+      const VerificationMeta('qualifiedIntakeDays');
+  @override
+  late final GeneratedColumn<int> qualifiedIntakeDays = GeneratedColumn<int>(
+    'qualified_intake_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _weightObservationCountMeta =
+      const VerificationMeta('weightObservationCount');
+  @override
+  late final GeneratedColumn<int> weightObservationCount = GeneratedColumn<int>(
+    'weight_observation_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _estimatedMaintenanceKcalMeta =
+      const VerificationMeta('estimatedMaintenanceKcal');
+  @override
+  late final GeneratedColumn<double> estimatedMaintenanceKcal =
+      GeneratedColumn<double>(
+        'estimated_maintenance_kcal',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _appliedAdjustmentKcalMeta =
+      const VerificationMeta('appliedAdjustmentKcal');
+  @override
+  late final GeneratedColumn<double> appliedAdjustmentKcal =
+      GeneratedColumn<double>(
+        'applied_adjustment_kcal',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _goalMeta = const VerificationMeta('goal');
+  @override
+  late final GeneratedColumn<String> goal = GeneratedColumn<String>(
+    'goal',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    effectiveFrom,
+    calculatedThrough,
+    kcal,
+    protein,
+    carb,
+    fat,
+    windowStart,
+    qualifiedIntakeDays,
+    weightObservationCount,
+    estimatedMaintenanceKcal,
+    appliedAdjustmentKcal,
+    reason,
+    goal,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'adaptive_targets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AdaptiveTarget> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('effective_from')) {
+      context.handle(
+        _effectiveFromMeta,
+        effectiveFrom.isAcceptableOrUnknown(
+          data['effective_from']!,
+          _effectiveFromMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_effectiveFromMeta);
+    }
+    if (data.containsKey('calculated_through')) {
+      context.handle(
+        _calculatedThroughMeta,
+        calculatedThrough.isAcceptableOrUnknown(
+          data['calculated_through']!,
+          _calculatedThroughMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_calculatedThroughMeta);
+    }
+    if (data.containsKey('kcal')) {
+      context.handle(
+        _kcalMeta,
+        kcal.isAcceptableOrUnknown(data['kcal']!, _kcalMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kcalMeta);
+    }
+    if (data.containsKey('protein')) {
+      context.handle(
+        _proteinMeta,
+        protein.isAcceptableOrUnknown(data['protein']!, _proteinMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_proteinMeta);
+    }
+    if (data.containsKey('carb')) {
+      context.handle(
+        _carbMeta,
+        carb.isAcceptableOrUnknown(data['carb']!, _carbMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_carbMeta);
+    }
+    if (data.containsKey('fat')) {
+      context.handle(
+        _fatMeta,
+        fat.isAcceptableOrUnknown(data['fat']!, _fatMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fatMeta);
+    }
+    if (data.containsKey('window_start')) {
+      context.handle(
+        _windowStartMeta,
+        windowStart.isAcceptableOrUnknown(
+          data['window_start']!,
+          _windowStartMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_windowStartMeta);
+    }
+    if (data.containsKey('qualified_intake_days')) {
+      context.handle(
+        _qualifiedIntakeDaysMeta,
+        qualifiedIntakeDays.isAcceptableOrUnknown(
+          data['qualified_intake_days']!,
+          _qualifiedIntakeDaysMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_qualifiedIntakeDaysMeta);
+    }
+    if (data.containsKey('weight_observation_count')) {
+      context.handle(
+        _weightObservationCountMeta,
+        weightObservationCount.isAcceptableOrUnknown(
+          data['weight_observation_count']!,
+          _weightObservationCountMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_weightObservationCountMeta);
+    }
+    if (data.containsKey('estimated_maintenance_kcal')) {
+      context.handle(
+        _estimatedMaintenanceKcalMeta,
+        estimatedMaintenanceKcal.isAcceptableOrUnknown(
+          data['estimated_maintenance_kcal']!,
+          _estimatedMaintenanceKcalMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_estimatedMaintenanceKcalMeta);
+    }
+    if (data.containsKey('applied_adjustment_kcal')) {
+      context.handle(
+        _appliedAdjustmentKcalMeta,
+        appliedAdjustmentKcal.isAcceptableOrUnknown(
+          data['applied_adjustment_kcal']!,
+          _appliedAdjustmentKcalMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_appliedAdjustmentKcalMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reasonMeta);
+    }
+    if (data.containsKey('goal')) {
+      context.handle(
+        _goalMeta,
+        goal.isAcceptableOrUnknown(data['goal']!, _goalMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AdaptiveTarget map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AdaptiveTarget(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      effectiveFrom: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}effective_from'],
+      )!,
+      calculatedThrough: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}calculated_through'],
+      )!,
+      kcal: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}kcal'],
+      )!,
+      protein: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}protein'],
+      )!,
+      carb: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}carb'],
+      )!,
+      fat: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}fat'],
+      )!,
+      windowStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}window_start'],
+      )!,
+      qualifiedIntakeDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}qualified_intake_days'],
+      )!,
+      weightObservationCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}weight_observation_count'],
+      )!,
+      estimatedMaintenanceKcal: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}estimated_maintenance_kcal'],
+      )!,
+      appliedAdjustmentKcal: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}applied_adjustment_kcal'],
+      )!,
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason'],
+      )!,
+      goal: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}goal'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AdaptiveTargetsTable createAlias(String alias) {
+    return $AdaptiveTargetsTable(attachedDatabase, alias);
+  }
+}
+
+class AdaptiveTarget extends DataClass implements Insertable<AdaptiveTarget> {
+  final int id;
+  final String effectiveFrom;
+  final String calculatedThrough;
+  final double kcal;
+  final double protein;
+  final double carb;
+  final double fat;
+  final String windowStart;
+  final int qualifiedIntakeDays;
+  final int weightObservationCount;
+  final double estimatedMaintenanceKcal;
+  final double appliedAdjustmentKcal;
+  final String reason;
+  final String? goal;
+  final DateTime createdAt;
+  const AdaptiveTarget({
+    required this.id,
+    required this.effectiveFrom,
+    required this.calculatedThrough,
+    required this.kcal,
+    required this.protein,
+    required this.carb,
+    required this.fat,
+    required this.windowStart,
+    required this.qualifiedIntakeDays,
+    required this.weightObservationCount,
+    required this.estimatedMaintenanceKcal,
+    required this.appliedAdjustmentKcal,
+    required this.reason,
+    this.goal,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['effective_from'] = Variable<String>(effectiveFrom);
+    map['calculated_through'] = Variable<String>(calculatedThrough);
+    map['kcal'] = Variable<double>(kcal);
+    map['protein'] = Variable<double>(protein);
+    map['carb'] = Variable<double>(carb);
+    map['fat'] = Variable<double>(fat);
+    map['window_start'] = Variable<String>(windowStart);
+    map['qualified_intake_days'] = Variable<int>(qualifiedIntakeDays);
+    map['weight_observation_count'] = Variable<int>(weightObservationCount);
+    map['estimated_maintenance_kcal'] = Variable<double>(
+      estimatedMaintenanceKcal,
+    );
+    map['applied_adjustment_kcal'] = Variable<double>(appliedAdjustmentKcal);
+    map['reason'] = Variable<String>(reason);
+    if (!nullToAbsent || goal != null) {
+      map['goal'] = Variable<String>(goal);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  AdaptiveTargetsCompanion toCompanion(bool nullToAbsent) {
+    return AdaptiveTargetsCompanion(
+      id: Value(id),
+      effectiveFrom: Value(effectiveFrom),
+      calculatedThrough: Value(calculatedThrough),
+      kcal: Value(kcal),
+      protein: Value(protein),
+      carb: Value(carb),
+      fat: Value(fat),
+      windowStart: Value(windowStart),
+      qualifiedIntakeDays: Value(qualifiedIntakeDays),
+      weightObservationCount: Value(weightObservationCount),
+      estimatedMaintenanceKcal: Value(estimatedMaintenanceKcal),
+      appliedAdjustmentKcal: Value(appliedAdjustmentKcal),
+      reason: Value(reason),
+      goal: goal == null && nullToAbsent ? const Value.absent() : Value(goal),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AdaptiveTarget.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AdaptiveTarget(
+      id: serializer.fromJson<int>(json['id']),
+      effectiveFrom: serializer.fromJson<String>(json['effectiveFrom']),
+      calculatedThrough: serializer.fromJson<String>(json['calculatedThrough']),
+      kcal: serializer.fromJson<double>(json['kcal']),
+      protein: serializer.fromJson<double>(json['protein']),
+      carb: serializer.fromJson<double>(json['carb']),
+      fat: serializer.fromJson<double>(json['fat']),
+      windowStart: serializer.fromJson<String>(json['windowStart']),
+      qualifiedIntakeDays: serializer.fromJson<int>(
+        json['qualifiedIntakeDays'],
+      ),
+      weightObservationCount: serializer.fromJson<int>(
+        json['weightObservationCount'],
+      ),
+      estimatedMaintenanceKcal: serializer.fromJson<double>(
+        json['estimatedMaintenanceKcal'],
+      ),
+      appliedAdjustmentKcal: serializer.fromJson<double>(
+        json['appliedAdjustmentKcal'],
+      ),
+      reason: serializer.fromJson<String>(json['reason']),
+      goal: serializer.fromJson<String?>(json['goal']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'effectiveFrom': serializer.toJson<String>(effectiveFrom),
+      'calculatedThrough': serializer.toJson<String>(calculatedThrough),
+      'kcal': serializer.toJson<double>(kcal),
+      'protein': serializer.toJson<double>(protein),
+      'carb': serializer.toJson<double>(carb),
+      'fat': serializer.toJson<double>(fat),
+      'windowStart': serializer.toJson<String>(windowStart),
+      'qualifiedIntakeDays': serializer.toJson<int>(qualifiedIntakeDays),
+      'weightObservationCount': serializer.toJson<int>(weightObservationCount),
+      'estimatedMaintenanceKcal': serializer.toJson<double>(
+        estimatedMaintenanceKcal,
+      ),
+      'appliedAdjustmentKcal': serializer.toJson<double>(appliedAdjustmentKcal),
+      'reason': serializer.toJson<String>(reason),
+      'goal': serializer.toJson<String?>(goal),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  AdaptiveTarget copyWith({
+    int? id,
+    String? effectiveFrom,
+    String? calculatedThrough,
+    double? kcal,
+    double? protein,
+    double? carb,
+    double? fat,
+    String? windowStart,
+    int? qualifiedIntakeDays,
+    int? weightObservationCount,
+    double? estimatedMaintenanceKcal,
+    double? appliedAdjustmentKcal,
+    String? reason,
+    Value<String?> goal = const Value.absent(),
+    DateTime? createdAt,
+  }) => AdaptiveTarget(
+    id: id ?? this.id,
+    effectiveFrom: effectiveFrom ?? this.effectiveFrom,
+    calculatedThrough: calculatedThrough ?? this.calculatedThrough,
+    kcal: kcal ?? this.kcal,
+    protein: protein ?? this.protein,
+    carb: carb ?? this.carb,
+    fat: fat ?? this.fat,
+    windowStart: windowStart ?? this.windowStart,
+    qualifiedIntakeDays: qualifiedIntakeDays ?? this.qualifiedIntakeDays,
+    weightObservationCount:
+        weightObservationCount ?? this.weightObservationCount,
+    estimatedMaintenanceKcal:
+        estimatedMaintenanceKcal ?? this.estimatedMaintenanceKcal,
+    appliedAdjustmentKcal: appliedAdjustmentKcal ?? this.appliedAdjustmentKcal,
+    reason: reason ?? this.reason,
+    goal: goal.present ? goal.value : this.goal,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  AdaptiveTarget copyWithCompanion(AdaptiveTargetsCompanion data) {
+    return AdaptiveTarget(
+      id: data.id.present ? data.id.value : this.id,
+      effectiveFrom: data.effectiveFrom.present
+          ? data.effectiveFrom.value
+          : this.effectiveFrom,
+      calculatedThrough: data.calculatedThrough.present
+          ? data.calculatedThrough.value
+          : this.calculatedThrough,
+      kcal: data.kcal.present ? data.kcal.value : this.kcal,
+      protein: data.protein.present ? data.protein.value : this.protein,
+      carb: data.carb.present ? data.carb.value : this.carb,
+      fat: data.fat.present ? data.fat.value : this.fat,
+      windowStart: data.windowStart.present
+          ? data.windowStart.value
+          : this.windowStart,
+      qualifiedIntakeDays: data.qualifiedIntakeDays.present
+          ? data.qualifiedIntakeDays.value
+          : this.qualifiedIntakeDays,
+      weightObservationCount: data.weightObservationCount.present
+          ? data.weightObservationCount.value
+          : this.weightObservationCount,
+      estimatedMaintenanceKcal: data.estimatedMaintenanceKcal.present
+          ? data.estimatedMaintenanceKcal.value
+          : this.estimatedMaintenanceKcal,
+      appliedAdjustmentKcal: data.appliedAdjustmentKcal.present
+          ? data.appliedAdjustmentKcal.value
+          : this.appliedAdjustmentKcal,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      goal: data.goal.present ? data.goal.value : this.goal,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AdaptiveTarget(')
+          ..write('id: $id, ')
+          ..write('effectiveFrom: $effectiveFrom, ')
+          ..write('calculatedThrough: $calculatedThrough, ')
+          ..write('kcal: $kcal, ')
+          ..write('protein: $protein, ')
+          ..write('carb: $carb, ')
+          ..write('fat: $fat, ')
+          ..write('windowStart: $windowStart, ')
+          ..write('qualifiedIntakeDays: $qualifiedIntakeDays, ')
+          ..write('weightObservationCount: $weightObservationCount, ')
+          ..write('estimatedMaintenanceKcal: $estimatedMaintenanceKcal, ')
+          ..write('appliedAdjustmentKcal: $appliedAdjustmentKcal, ')
+          ..write('reason: $reason, ')
+          ..write('goal: $goal, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    effectiveFrom,
+    calculatedThrough,
+    kcal,
+    protein,
+    carb,
+    fat,
+    windowStart,
+    qualifiedIntakeDays,
+    weightObservationCount,
+    estimatedMaintenanceKcal,
+    appliedAdjustmentKcal,
+    reason,
+    goal,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AdaptiveTarget &&
+          other.id == this.id &&
+          other.effectiveFrom == this.effectiveFrom &&
+          other.calculatedThrough == this.calculatedThrough &&
+          other.kcal == this.kcal &&
+          other.protein == this.protein &&
+          other.carb == this.carb &&
+          other.fat == this.fat &&
+          other.windowStart == this.windowStart &&
+          other.qualifiedIntakeDays == this.qualifiedIntakeDays &&
+          other.weightObservationCount == this.weightObservationCount &&
+          other.estimatedMaintenanceKcal == this.estimatedMaintenanceKcal &&
+          other.appliedAdjustmentKcal == this.appliedAdjustmentKcal &&
+          other.reason == this.reason &&
+          other.goal == this.goal &&
+          other.createdAt == this.createdAt);
+}
+
+class AdaptiveTargetsCompanion extends UpdateCompanion<AdaptiveTarget> {
+  final Value<int> id;
+  final Value<String> effectiveFrom;
+  final Value<String> calculatedThrough;
+  final Value<double> kcal;
+  final Value<double> protein;
+  final Value<double> carb;
+  final Value<double> fat;
+  final Value<String> windowStart;
+  final Value<int> qualifiedIntakeDays;
+  final Value<int> weightObservationCount;
+  final Value<double> estimatedMaintenanceKcal;
+  final Value<double> appliedAdjustmentKcal;
+  final Value<String> reason;
+  final Value<String?> goal;
+  final Value<DateTime> createdAt;
+  const AdaptiveTargetsCompanion({
+    this.id = const Value.absent(),
+    this.effectiveFrom = const Value.absent(),
+    this.calculatedThrough = const Value.absent(),
+    this.kcal = const Value.absent(),
+    this.protein = const Value.absent(),
+    this.carb = const Value.absent(),
+    this.fat = const Value.absent(),
+    this.windowStart = const Value.absent(),
+    this.qualifiedIntakeDays = const Value.absent(),
+    this.weightObservationCount = const Value.absent(),
+    this.estimatedMaintenanceKcal = const Value.absent(),
+    this.appliedAdjustmentKcal = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.goal = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  AdaptiveTargetsCompanion.insert({
+    this.id = const Value.absent(),
+    required String effectiveFrom,
+    required String calculatedThrough,
+    required double kcal,
+    required double protein,
+    required double carb,
+    required double fat,
+    required String windowStart,
+    required int qualifiedIntakeDays,
+    required int weightObservationCount,
+    required double estimatedMaintenanceKcal,
+    required double appliedAdjustmentKcal,
+    required String reason,
+    this.goal = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : effectiveFrom = Value(effectiveFrom),
+       calculatedThrough = Value(calculatedThrough),
+       kcal = Value(kcal),
+       protein = Value(protein),
+       carb = Value(carb),
+       fat = Value(fat),
+       windowStart = Value(windowStart),
+       qualifiedIntakeDays = Value(qualifiedIntakeDays),
+       weightObservationCount = Value(weightObservationCount),
+       estimatedMaintenanceKcal = Value(estimatedMaintenanceKcal),
+       appliedAdjustmentKcal = Value(appliedAdjustmentKcal),
+       reason = Value(reason);
+  static Insertable<AdaptiveTarget> custom({
+    Expression<int>? id,
+    Expression<String>? effectiveFrom,
+    Expression<String>? calculatedThrough,
+    Expression<double>? kcal,
+    Expression<double>? protein,
+    Expression<double>? carb,
+    Expression<double>? fat,
+    Expression<String>? windowStart,
+    Expression<int>? qualifiedIntakeDays,
+    Expression<int>? weightObservationCount,
+    Expression<double>? estimatedMaintenanceKcal,
+    Expression<double>? appliedAdjustmentKcal,
+    Expression<String>? reason,
+    Expression<String>? goal,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (effectiveFrom != null) 'effective_from': effectiveFrom,
+      if (calculatedThrough != null) 'calculated_through': calculatedThrough,
+      if (kcal != null) 'kcal': kcal,
+      if (protein != null) 'protein': protein,
+      if (carb != null) 'carb': carb,
+      if (fat != null) 'fat': fat,
+      if (windowStart != null) 'window_start': windowStart,
+      if (qualifiedIntakeDays != null)
+        'qualified_intake_days': qualifiedIntakeDays,
+      if (weightObservationCount != null)
+        'weight_observation_count': weightObservationCount,
+      if (estimatedMaintenanceKcal != null)
+        'estimated_maintenance_kcal': estimatedMaintenanceKcal,
+      if (appliedAdjustmentKcal != null)
+        'applied_adjustment_kcal': appliedAdjustmentKcal,
+      if (reason != null) 'reason': reason,
+      if (goal != null) 'goal': goal,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  AdaptiveTargetsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? effectiveFrom,
+    Value<String>? calculatedThrough,
+    Value<double>? kcal,
+    Value<double>? protein,
+    Value<double>? carb,
+    Value<double>? fat,
+    Value<String>? windowStart,
+    Value<int>? qualifiedIntakeDays,
+    Value<int>? weightObservationCount,
+    Value<double>? estimatedMaintenanceKcal,
+    Value<double>? appliedAdjustmentKcal,
+    Value<String>? reason,
+    Value<String?>? goal,
+    Value<DateTime>? createdAt,
+  }) {
+    return AdaptiveTargetsCompanion(
+      id: id ?? this.id,
+      effectiveFrom: effectiveFrom ?? this.effectiveFrom,
+      calculatedThrough: calculatedThrough ?? this.calculatedThrough,
+      kcal: kcal ?? this.kcal,
+      protein: protein ?? this.protein,
+      carb: carb ?? this.carb,
+      fat: fat ?? this.fat,
+      windowStart: windowStart ?? this.windowStart,
+      qualifiedIntakeDays: qualifiedIntakeDays ?? this.qualifiedIntakeDays,
+      weightObservationCount:
+          weightObservationCount ?? this.weightObservationCount,
+      estimatedMaintenanceKcal:
+          estimatedMaintenanceKcal ?? this.estimatedMaintenanceKcal,
+      appliedAdjustmentKcal:
+          appliedAdjustmentKcal ?? this.appliedAdjustmentKcal,
+      reason: reason ?? this.reason,
+      goal: goal ?? this.goal,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (effectiveFrom.present) {
+      map['effective_from'] = Variable<String>(effectiveFrom.value);
+    }
+    if (calculatedThrough.present) {
+      map['calculated_through'] = Variable<String>(calculatedThrough.value);
+    }
+    if (kcal.present) {
+      map['kcal'] = Variable<double>(kcal.value);
+    }
+    if (protein.present) {
+      map['protein'] = Variable<double>(protein.value);
+    }
+    if (carb.present) {
+      map['carb'] = Variable<double>(carb.value);
+    }
+    if (fat.present) {
+      map['fat'] = Variable<double>(fat.value);
+    }
+    if (windowStart.present) {
+      map['window_start'] = Variable<String>(windowStart.value);
+    }
+    if (qualifiedIntakeDays.present) {
+      map['qualified_intake_days'] = Variable<int>(qualifiedIntakeDays.value);
+    }
+    if (weightObservationCount.present) {
+      map['weight_observation_count'] = Variable<int>(
+        weightObservationCount.value,
+      );
+    }
+    if (estimatedMaintenanceKcal.present) {
+      map['estimated_maintenance_kcal'] = Variable<double>(
+        estimatedMaintenanceKcal.value,
+      );
+    }
+    if (appliedAdjustmentKcal.present) {
+      map['applied_adjustment_kcal'] = Variable<double>(
+        appliedAdjustmentKcal.value,
+      );
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (goal.present) {
+      map['goal'] = Variable<String>(goal.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AdaptiveTargetsCompanion(')
+          ..write('id: $id, ')
+          ..write('effectiveFrom: $effectiveFrom, ')
+          ..write('calculatedThrough: $calculatedThrough, ')
+          ..write('kcal: $kcal, ')
+          ..write('protein: $protein, ')
+          ..write('carb: $carb, ')
+          ..write('fat: $fat, ')
+          ..write('windowStart: $windowStart, ')
+          ..write('qualifiedIntakeDays: $qualifiedIntakeDays, ')
+          ..write('weightObservationCount: $weightObservationCount, ')
+          ..write('estimatedMaintenanceKcal: $estimatedMaintenanceKcal, ')
+          ..write('appliedAdjustmentKcal: $appliedAdjustmentKcal, ')
+          ..write('reason: $reason, ')
+          ..write('goal: $goal, ')
+          ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
@@ -7963,6 +9602,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LogEntriesTable logEntries = $LogEntriesTable(this);
   late final $DailyTargetsTableTable dailyTargetsTable =
       $DailyTargetsTableTable(this);
+  late final $AdaptiveTargetsTable adaptiveTargets = $AdaptiveTargetsTable(
+    this,
+  );
   late final $SettingsTable settings = $SettingsTable(this);
   late final $GroceryItemsTable groceryItems = $GroceryItemsTable(this);
   late final $WeightEntriesTable weightEntries = $WeightEntriesTable(this);
@@ -7993,6 +9635,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     foodCache,
     logEntries,
     dailyTargetsTable,
+    adaptiveTargets,
     settings,
     groceryItems,
     weightEntries,
@@ -9452,6 +11095,18 @@ typedef $$FoodCacheTableCreateCompanionBuilder =
       Value<double?> gramsPerPiece,
       Value<double?> fibre100,
       Value<double?> sodium100,
+      Value<double?> basisQuantity,
+      Value<String?> basisUnit,
+      Value<double?> basisKcal,
+      Value<double?> basisProtein,
+      Value<double?> basisCarb,
+      Value<double?> basisFat,
+      Value<double?> basisPhysicalGrams,
+      Value<bool> basisNeedsReview,
+      Value<String?> sourceUrl,
+      Value<String?> sourceTitle,
+      Value<DateTime?> sourceRetrievedAt,
+      Value<String?> sourceInferredFields,
     });
 typedef $$FoodCacheTableUpdateCompanionBuilder =
     FoodCacheCompanion Function({
@@ -9467,6 +11122,18 @@ typedef $$FoodCacheTableUpdateCompanionBuilder =
       Value<double?> gramsPerPiece,
       Value<double?> fibre100,
       Value<double?> sodium100,
+      Value<double?> basisQuantity,
+      Value<String?> basisUnit,
+      Value<double?> basisKcal,
+      Value<double?> basisProtein,
+      Value<double?> basisCarb,
+      Value<double?> basisFat,
+      Value<double?> basisPhysicalGrams,
+      Value<bool> basisNeedsReview,
+      Value<String?> sourceUrl,
+      Value<String?> sourceTitle,
+      Value<DateTime?> sourceRetrievedAt,
+      Value<String?> sourceInferredFields,
     });
 
 class $$FoodCacheTableFilterComposer
@@ -9535,6 +11202,66 @@ class $$FoodCacheTableFilterComposer
 
   ColumnFilters<double> get sodium100 => $composableBuilder(
     column: $table.sodium100,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get basisQuantity => $composableBuilder(
+    column: $table.basisQuantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get basisUnit => $composableBuilder(
+    column: $table.basisUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get basisKcal => $composableBuilder(
+    column: $table.basisKcal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get basisProtein => $composableBuilder(
+    column: $table.basisProtein,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get basisCarb => $composableBuilder(
+    column: $table.basisCarb,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get basisFat => $composableBuilder(
+    column: $table.basisFat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get basisPhysicalGrams => $composableBuilder(
+    column: $table.basisPhysicalGrams,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get basisNeedsReview => $composableBuilder(
+    column: $table.basisNeedsReview,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceUrl => $composableBuilder(
+    column: $table.sourceUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceTitle => $composableBuilder(
+    column: $table.sourceTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get sourceRetrievedAt => $composableBuilder(
+    column: $table.sourceRetrievedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceInferredFields => $composableBuilder(
+    column: $table.sourceInferredFields,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -9607,6 +11334,66 @@ class $$FoodCacheTableOrderingComposer
     column: $table.sodium100,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get basisQuantity => $composableBuilder(
+    column: $table.basisQuantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get basisUnit => $composableBuilder(
+    column: $table.basisUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get basisKcal => $composableBuilder(
+    column: $table.basisKcal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get basisProtein => $composableBuilder(
+    column: $table.basisProtein,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get basisCarb => $composableBuilder(
+    column: $table.basisCarb,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get basisFat => $composableBuilder(
+    column: $table.basisFat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get basisPhysicalGrams => $composableBuilder(
+    column: $table.basisPhysicalGrams,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get basisNeedsReview => $composableBuilder(
+    column: $table.basisNeedsReview,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceUrl => $composableBuilder(
+    column: $table.sourceUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceTitle => $composableBuilder(
+    column: $table.sourceTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get sourceRetrievedAt => $composableBuilder(
+    column: $table.sourceRetrievedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceInferredFields => $composableBuilder(
+    column: $table.sourceInferredFields,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$FoodCacheTableAnnotationComposer
@@ -9661,6 +11448,56 @@ class $$FoodCacheTableAnnotationComposer
 
   GeneratedColumn<double> get sodium100 =>
       $composableBuilder(column: $table.sodium100, builder: (column) => column);
+
+  GeneratedColumn<double> get basisQuantity => $composableBuilder(
+    column: $table.basisQuantity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get basisUnit =>
+      $composableBuilder(column: $table.basisUnit, builder: (column) => column);
+
+  GeneratedColumn<double> get basisKcal =>
+      $composableBuilder(column: $table.basisKcal, builder: (column) => column);
+
+  GeneratedColumn<double> get basisProtein => $composableBuilder(
+    column: $table.basisProtein,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get basisCarb =>
+      $composableBuilder(column: $table.basisCarb, builder: (column) => column);
+
+  GeneratedColumn<double> get basisFat =>
+      $composableBuilder(column: $table.basisFat, builder: (column) => column);
+
+  GeneratedColumn<double> get basisPhysicalGrams => $composableBuilder(
+    column: $table.basisPhysicalGrams,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get basisNeedsReview => $composableBuilder(
+    column: $table.basisNeedsReview,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceUrl =>
+      $composableBuilder(column: $table.sourceUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceTitle => $composableBuilder(
+    column: $table.sourceTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get sourceRetrievedAt => $composableBuilder(
+    column: $table.sourceRetrievedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceInferredFields => $composableBuilder(
+    column: $table.sourceInferredFields,
+    builder: (column) => column,
+  );
 }
 
 class $$FoodCacheTableTableManager
@@ -9706,6 +11543,18 @@ class $$FoodCacheTableTableManager
                 Value<double?> gramsPerPiece = const Value.absent(),
                 Value<double?> fibre100 = const Value.absent(),
                 Value<double?> sodium100 = const Value.absent(),
+                Value<double?> basisQuantity = const Value.absent(),
+                Value<String?> basisUnit = const Value.absent(),
+                Value<double?> basisKcal = const Value.absent(),
+                Value<double?> basisProtein = const Value.absent(),
+                Value<double?> basisCarb = const Value.absent(),
+                Value<double?> basisFat = const Value.absent(),
+                Value<double?> basisPhysicalGrams = const Value.absent(),
+                Value<bool> basisNeedsReview = const Value.absent(),
+                Value<String?> sourceUrl = const Value.absent(),
+                Value<String?> sourceTitle = const Value.absent(),
+                Value<DateTime?> sourceRetrievedAt = const Value.absent(),
+                Value<String?> sourceInferredFields = const Value.absent(),
               }) => FoodCacheCompanion(
                 id: id,
                 name: name,
@@ -9719,6 +11568,18 @@ class $$FoodCacheTableTableManager
                 gramsPerPiece: gramsPerPiece,
                 fibre100: fibre100,
                 sodium100: sodium100,
+                basisQuantity: basisQuantity,
+                basisUnit: basisUnit,
+                basisKcal: basisKcal,
+                basisProtein: basisProtein,
+                basisCarb: basisCarb,
+                basisFat: basisFat,
+                basisPhysicalGrams: basisPhysicalGrams,
+                basisNeedsReview: basisNeedsReview,
+                sourceUrl: sourceUrl,
+                sourceTitle: sourceTitle,
+                sourceRetrievedAt: sourceRetrievedAt,
+                sourceInferredFields: sourceInferredFields,
               ),
           createCompanionCallback:
               ({
@@ -9734,6 +11595,18 @@ class $$FoodCacheTableTableManager
                 Value<double?> gramsPerPiece = const Value.absent(),
                 Value<double?> fibre100 = const Value.absent(),
                 Value<double?> sodium100 = const Value.absent(),
+                Value<double?> basisQuantity = const Value.absent(),
+                Value<String?> basisUnit = const Value.absent(),
+                Value<double?> basisKcal = const Value.absent(),
+                Value<double?> basisProtein = const Value.absent(),
+                Value<double?> basisCarb = const Value.absent(),
+                Value<double?> basisFat = const Value.absent(),
+                Value<double?> basisPhysicalGrams = const Value.absent(),
+                Value<bool> basisNeedsReview = const Value.absent(),
+                Value<String?> sourceUrl = const Value.absent(),
+                Value<String?> sourceTitle = const Value.absent(),
+                Value<DateTime?> sourceRetrievedAt = const Value.absent(),
+                Value<String?> sourceInferredFields = const Value.absent(),
               }) => FoodCacheCompanion.insert(
                 id: id,
                 name: name,
@@ -9747,6 +11620,18 @@ class $$FoodCacheTableTableManager
                 gramsPerPiece: gramsPerPiece,
                 fibre100: fibre100,
                 sodium100: sodium100,
+                basisQuantity: basisQuantity,
+                basisUnit: basisUnit,
+                basisKcal: basisKcal,
+                basisProtein: basisProtein,
+                basisCarb: basisCarb,
+                basisFat: basisFat,
+                basisPhysicalGrams: basisPhysicalGrams,
+                basisNeedsReview: basisNeedsReview,
+                sourceUrl: sourceUrl,
+                sourceTitle: sourceTitle,
+                sourceRetrievedAt: sourceRetrievedAt,
+                sourceInferredFields: sourceInferredFields,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -9786,6 +11671,8 @@ typedef $$LogEntriesTableCreateCompanionBuilder =
       Value<double?> fibre,
       required String source,
       Value<int?> recipeId,
+      Value<double?> portionQuantity,
+      Value<String?> portionUnit,
     });
 typedef $$LogEntriesTableUpdateCompanionBuilder =
     LogEntriesCompanion Function({
@@ -9800,6 +11687,8 @@ typedef $$LogEntriesTableUpdateCompanionBuilder =
       Value<double?> fibre,
       Value<String> source,
       Value<int?> recipeId,
+      Value<double?> portionQuantity,
+      Value<String?> portionUnit,
     });
 
 class $$LogEntriesTableFilterComposer
@@ -9863,6 +11752,16 @@ class $$LogEntriesTableFilterComposer
 
   ColumnFilters<int> get recipeId => $composableBuilder(
     column: $table.recipeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get portionQuantity => $composableBuilder(
+    column: $table.portionQuantity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get portionUnit => $composableBuilder(
+    column: $table.portionUnit,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -9930,6 +11829,16 @@ class $$LogEntriesTableOrderingComposer
     column: $table.recipeId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get portionQuantity => $composableBuilder(
+    column: $table.portionQuantity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get portionUnit => $composableBuilder(
+    column: $table.portionUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LogEntriesTableAnnotationComposer
@@ -9973,6 +11882,16 @@ class $$LogEntriesTableAnnotationComposer
 
   GeneratedColumn<int> get recipeId =>
       $composableBuilder(column: $table.recipeId, builder: (column) => column);
+
+  GeneratedColumn<double> get portionQuantity => $composableBuilder(
+    column: $table.portionQuantity,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get portionUnit => $composableBuilder(
+    column: $table.portionUnit,
+    builder: (column) => column,
+  );
 }
 
 class $$LogEntriesTableTableManager
@@ -10014,6 +11933,8 @@ class $$LogEntriesTableTableManager
                 Value<double?> fibre = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 Value<int?> recipeId = const Value.absent(),
+                Value<double?> portionQuantity = const Value.absent(),
+                Value<String?> portionUnit = const Value.absent(),
               }) => LogEntriesCompanion(
                 id: id,
                 date: date,
@@ -10026,6 +11947,8 @@ class $$LogEntriesTableTableManager
                 fibre: fibre,
                 source: source,
                 recipeId: recipeId,
+                portionQuantity: portionQuantity,
+                portionUnit: portionUnit,
               ),
           createCompanionCallback:
               ({
@@ -10040,6 +11963,8 @@ class $$LogEntriesTableTableManager
                 Value<double?> fibre = const Value.absent(),
                 required String source,
                 Value<int?> recipeId = const Value.absent(),
+                Value<double?> portionQuantity = const Value.absent(),
+                Value<String?> portionUnit = const Value.absent(),
               }) => LogEntriesCompanion.insert(
                 id: id,
                 date: date,
@@ -10052,6 +11977,8 @@ class $$LogEntriesTableTableManager
                 fibre: fibre,
                 source: source,
                 recipeId: recipeId,
+                portionQuantity: portionQuantity,
+                portionUnit: portionUnit,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -10286,6 +12213,410 @@ typedef $$DailyTargetsTableTableProcessedTableManager =
         >,
       ),
       DailyTargetsTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$AdaptiveTargetsTableCreateCompanionBuilder =
+    AdaptiveTargetsCompanion Function({
+      Value<int> id,
+      required String effectiveFrom,
+      required String calculatedThrough,
+      required double kcal,
+      required double protein,
+      required double carb,
+      required double fat,
+      required String windowStart,
+      required int qualifiedIntakeDays,
+      required int weightObservationCount,
+      required double estimatedMaintenanceKcal,
+      required double appliedAdjustmentKcal,
+      required String reason,
+      Value<String?> goal,
+      Value<DateTime> createdAt,
+    });
+typedef $$AdaptiveTargetsTableUpdateCompanionBuilder =
+    AdaptiveTargetsCompanion Function({
+      Value<int> id,
+      Value<String> effectiveFrom,
+      Value<String> calculatedThrough,
+      Value<double> kcal,
+      Value<double> protein,
+      Value<double> carb,
+      Value<double> fat,
+      Value<String> windowStart,
+      Value<int> qualifiedIntakeDays,
+      Value<int> weightObservationCount,
+      Value<double> estimatedMaintenanceKcal,
+      Value<double> appliedAdjustmentKcal,
+      Value<String> reason,
+      Value<String?> goal,
+      Value<DateTime> createdAt,
+    });
+
+class $$AdaptiveTargetsTableFilterComposer
+    extends Composer<_$AppDatabase, $AdaptiveTargetsTable> {
+  $$AdaptiveTargetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get effectiveFrom => $composableBuilder(
+    column: $table.effectiveFrom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get calculatedThrough => $composableBuilder(
+    column: $table.calculatedThrough,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get kcal => $composableBuilder(
+    column: $table.kcal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get protein => $composableBuilder(
+    column: $table.protein,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get carb => $composableBuilder(
+    column: $table.carb,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get fat => $composableBuilder(
+    column: $table.fat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get windowStart => $composableBuilder(
+    column: $table.windowStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get qualifiedIntakeDays => $composableBuilder(
+    column: $table.qualifiedIntakeDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get weightObservationCount => $composableBuilder(
+    column: $table.weightObservationCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get estimatedMaintenanceKcal => $composableBuilder(
+    column: $table.estimatedMaintenanceKcal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get appliedAdjustmentKcal => $composableBuilder(
+    column: $table.appliedAdjustmentKcal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get goal => $composableBuilder(
+    column: $table.goal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AdaptiveTargetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AdaptiveTargetsTable> {
+  $$AdaptiveTargetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get effectiveFrom => $composableBuilder(
+    column: $table.effectiveFrom,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get calculatedThrough => $composableBuilder(
+    column: $table.calculatedThrough,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get kcal => $composableBuilder(
+    column: $table.kcal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get protein => $composableBuilder(
+    column: $table.protein,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get carb => $composableBuilder(
+    column: $table.carb,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get fat => $composableBuilder(
+    column: $table.fat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get windowStart => $composableBuilder(
+    column: $table.windowStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get qualifiedIntakeDays => $composableBuilder(
+    column: $table.qualifiedIntakeDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get weightObservationCount => $composableBuilder(
+    column: $table.weightObservationCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get estimatedMaintenanceKcal => $composableBuilder(
+    column: $table.estimatedMaintenanceKcal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get appliedAdjustmentKcal => $composableBuilder(
+    column: $table.appliedAdjustmentKcal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get goal => $composableBuilder(
+    column: $table.goal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AdaptiveTargetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AdaptiveTargetsTable> {
+  $$AdaptiveTargetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get effectiveFrom => $composableBuilder(
+    column: $table.effectiveFrom,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get calculatedThrough => $composableBuilder(
+    column: $table.calculatedThrough,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get kcal =>
+      $composableBuilder(column: $table.kcal, builder: (column) => column);
+
+  GeneratedColumn<double> get protein =>
+      $composableBuilder(column: $table.protein, builder: (column) => column);
+
+  GeneratedColumn<double> get carb =>
+      $composableBuilder(column: $table.carb, builder: (column) => column);
+
+  GeneratedColumn<double> get fat =>
+      $composableBuilder(column: $table.fat, builder: (column) => column);
+
+  GeneratedColumn<String> get windowStart => $composableBuilder(
+    column: $table.windowStart,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get qualifiedIntakeDays => $composableBuilder(
+    column: $table.qualifiedIntakeDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get weightObservationCount => $composableBuilder(
+    column: $table.weightObservationCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get estimatedMaintenanceKcal => $composableBuilder(
+    column: $table.estimatedMaintenanceKcal,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get appliedAdjustmentKcal => $composableBuilder(
+    column: $table.appliedAdjustmentKcal,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<String> get goal =>
+      $composableBuilder(column: $table.goal, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AdaptiveTargetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AdaptiveTargetsTable,
+          AdaptiveTarget,
+          $$AdaptiveTargetsTableFilterComposer,
+          $$AdaptiveTargetsTableOrderingComposer,
+          $$AdaptiveTargetsTableAnnotationComposer,
+          $$AdaptiveTargetsTableCreateCompanionBuilder,
+          $$AdaptiveTargetsTableUpdateCompanionBuilder,
+          (
+            AdaptiveTarget,
+            BaseReferences<
+              _$AppDatabase,
+              $AdaptiveTargetsTable,
+              AdaptiveTarget
+            >,
+          ),
+          AdaptiveTarget,
+          PrefetchHooks Function()
+        > {
+  $$AdaptiveTargetsTableTableManager(
+    _$AppDatabase db,
+    $AdaptiveTargetsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AdaptiveTargetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AdaptiveTargetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AdaptiveTargetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> effectiveFrom = const Value.absent(),
+                Value<String> calculatedThrough = const Value.absent(),
+                Value<double> kcal = const Value.absent(),
+                Value<double> protein = const Value.absent(),
+                Value<double> carb = const Value.absent(),
+                Value<double> fat = const Value.absent(),
+                Value<String> windowStart = const Value.absent(),
+                Value<int> qualifiedIntakeDays = const Value.absent(),
+                Value<int> weightObservationCount = const Value.absent(),
+                Value<double> estimatedMaintenanceKcal = const Value.absent(),
+                Value<double> appliedAdjustmentKcal = const Value.absent(),
+                Value<String> reason = const Value.absent(),
+                Value<String?> goal = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => AdaptiveTargetsCompanion(
+                id: id,
+                effectiveFrom: effectiveFrom,
+                calculatedThrough: calculatedThrough,
+                kcal: kcal,
+                protein: protein,
+                carb: carb,
+                fat: fat,
+                windowStart: windowStart,
+                qualifiedIntakeDays: qualifiedIntakeDays,
+                weightObservationCount: weightObservationCount,
+                estimatedMaintenanceKcal: estimatedMaintenanceKcal,
+                appliedAdjustmentKcal: appliedAdjustmentKcal,
+                reason: reason,
+                goal: goal,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String effectiveFrom,
+                required String calculatedThrough,
+                required double kcal,
+                required double protein,
+                required double carb,
+                required double fat,
+                required String windowStart,
+                required int qualifiedIntakeDays,
+                required int weightObservationCount,
+                required double estimatedMaintenanceKcal,
+                required double appliedAdjustmentKcal,
+                required String reason,
+                Value<String?> goal = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => AdaptiveTargetsCompanion.insert(
+                id: id,
+                effectiveFrom: effectiveFrom,
+                calculatedThrough: calculatedThrough,
+                kcal: kcal,
+                protein: protein,
+                carb: carb,
+                fat: fat,
+                windowStart: windowStart,
+                qualifiedIntakeDays: qualifiedIntakeDays,
+                weightObservationCount: weightObservationCount,
+                estimatedMaintenanceKcal: estimatedMaintenanceKcal,
+                appliedAdjustmentKcal: appliedAdjustmentKcal,
+                reason: reason,
+                goal: goal,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AdaptiveTargetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AdaptiveTargetsTable,
+      AdaptiveTarget,
+      $$AdaptiveTargetsTableFilterComposer,
+      $$AdaptiveTargetsTableOrderingComposer,
+      $$AdaptiveTargetsTableAnnotationComposer,
+      $$AdaptiveTargetsTableCreateCompanionBuilder,
+      $$AdaptiveTargetsTableUpdateCompanionBuilder,
+      (
+        AdaptiveTarget,
+        BaseReferences<_$AppDatabase, $AdaptiveTargetsTable, AdaptiveTarget>,
+      ),
+      AdaptiveTarget,
       PrefetchHooks Function()
     >;
 typedef $$SettingsTableCreateCompanionBuilder =
@@ -14192,6 +16523,8 @@ class $AppDatabaseManager {
       $$LogEntriesTableTableManager(_db, _db.logEntries);
   $$DailyTargetsTableTableTableManager get dailyTargetsTable =>
       $$DailyTargetsTableTableTableManager(_db, _db.dailyTargetsTable);
+  $$AdaptiveTargetsTableTableManager get adaptiveTargets =>
+      $$AdaptiveTargetsTableTableManager(_db, _db.adaptiveTargets);
   $$SettingsTableTableManager get settings =>
       $$SettingsTableTableManager(_db, _db.settings);
   $$GroceryItemsTableTableManager get groceryItems =>

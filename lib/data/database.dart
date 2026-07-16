@@ -1,7 +1,9 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import '../services/food_units.dart';
 
 part 'database.g.dart';
+part 'migrations/nutrition_basis_migration.dart';
 
 class Recipes extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -43,6 +45,25 @@ class FoodCache extends Table {
   RealColumn get fibre100 => real().nullable()();
   // Sodium per 100g (mg). Nullable.
   RealColumn get sodium100 => real().nullable()();
+  RealColumn get basisQuantity => real().nullable()();
+  TextColumn get basisUnit => text().nullable()();
+  RealColumn get basisKcal => real().nullable()();
+  RealColumn get basisProtein => real().nullable()();
+  RealColumn get basisCarb => real().nullable()();
+  RealColumn get basisFat => real().nullable()();
+  // Explicit physical weight represented by the authored nutrition basis.
+  // Unlike gramsPerPiece this may describe multiple count units or a volume.
+  RealColumn get basisPhysicalGrams => real().nullable()();
+  BoolColumn get basisNeedsReview =>
+      boolean().withDefault(const Constant(false))();
+  // Nullable provenance for AI web-grounded nutrition. These fields stay on
+  // FoodCache so cached and user-confirmed foods retain their source without
+  // requiring a join on the hot lookup path.
+  TextColumn get sourceUrl => text().nullable()();
+  TextColumn get sourceTitle => text().nullable()();
+  DateTimeColumn get sourceRetrievedAt => dateTime().nullable()();
+  // Deterministically encoded (sorted) inferred field names.
+  TextColumn get sourceInferredFields => text().nullable()();
 }
 
 class LogEntries extends Table {
@@ -58,6 +79,8 @@ class LogEntries extends Table {
   RealColumn get fibre => real().nullable()();
   TextColumn get source => text()();
   IntColumn get recipeId => integer().nullable()();
+  RealColumn get portionQuantity => real().nullable()();
+  TextColumn get portionUnit => text().nullable()();
 }
 
 class DailyTargetsTable extends Table {
@@ -70,6 +93,26 @@ class DailyTargetsTable extends Table {
   RealColumn get fat => real()();
   @override
   Set<Column> get primaryKey => {scope};
+}
+
+/// Immutable, effective-dated targets calculated by the adaptive algorithm.
+/// Manual defaults and date-specific overrides remain in [DailyTargetsTable].
+class AdaptiveTargets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get effectiveFrom => text().unique()(); // YYYY-MM-DD
+  TextColumn get calculatedThrough => text()(); // YYYY-MM-DD
+  RealColumn get kcal => real()();
+  RealColumn get protein => real()();
+  RealColumn get carb => real()();
+  RealColumn get fat => real()();
+  TextColumn get windowStart => text()(); // YYYY-MM-DD
+  IntColumn get qualifiedIntakeDays => integer()();
+  IntColumn get weightObservationCount => integer()();
+  RealColumn get estimatedMaintenanceKcal => real()();
+  RealColumn get appliedAdjustmentKcal => real()();
+  TextColumn get reason => text()();
+  TextColumn get goal => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 class Settings extends Table {
@@ -94,8 +137,8 @@ class WeightEntries extends Table {
 
   @override
   List<Set<Column>> get uniqueKeys => [
-        {date},
-      ];
+    {date},
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +150,8 @@ class WeightEntries extends Table {
 /// this exercise should record (Approach A — unified flexible entry model).
 class Exercises extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get slug => text().nullable().unique()(); // built-ins only; null for custom
+  TextColumn get slug =>
+      text().nullable().unique()(); // built-ins only; null for custom
   TextColumn get name => text()();
   TextColumn get category => text()(); // strength|cardio|class|mobility
   TextColumn get primaryMuscle => text().nullable()();
@@ -118,8 +162,10 @@ class Exercises extends Table {
   TextColumn get description => text().nullable()(); // how-to / form cues
   BoolColumn get tracksWeight => boolean().withDefault(const Constant(false))();
   BoolColumn get tracksReps => boolean().withDefault(const Constant(false))();
-  BoolColumn get tracksDuration => boolean().withDefault(const Constant(false))();
-  BoolColumn get tracksDistance => boolean().withDefault(const Constant(false))();
+  BoolColumn get tracksDuration =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get tracksDistance =>
+      boolean().withDefault(const Constant(false))();
   BoolColumn get isCustom => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
@@ -128,7 +174,8 @@ class Exercises extends Table {
 class WorkoutSessions extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get date => text()(); // YYYY-MM-DD
-  IntColumn get dayId => integer().nullable()(); // null = ad-hoc; → TemplateDays
+  IntColumn get dayId =>
+      integer().nullable()(); // null = ad-hoc; → TemplateDays
   TextColumn get name => text()();
   DateTimeColumn get startedAt => dateTime().nullable()();
   DateTimeColumn get completedAt => dateTime().nullable()();
@@ -248,98 +295,124 @@ class RecipeNutritionCache extends Table {
   Set<Column> get primaryKey => {recipeId};
 }
 
-@DriftDatabase(tables: [
-  Recipes,
-  RecipeIngredients,
-  RecipeSteps,
-  RecipeNutritionCache,
-  FoodCache,
-  LogEntries,
-  DailyTargetsTable,
-  Settings,
-  GroceryItems,
-  WeightEntries,
-  Exercises,
-  WorkoutSessions,
-  SetEntries,
-  WorkoutTemplates,
-  TemplateDays,
-  TemplateExercises,
-  ScheduleEntries,
-  DailyActivity,
-])
+@DriftDatabase(
+  tables: [
+    Recipes,
+    RecipeIngredients,
+    RecipeSteps,
+    RecipeNutritionCache,
+    FoodCache,
+    LogEntries,
+    DailyTargetsTable,
+    AdaptiveTargets,
+    Settings,
+    GroceryItems,
+    WeightEntries,
+    Exercises,
+    WorkoutSessions,
+    SetEntries,
+    WorkoutTemplates,
+    TemplateDays,
+    TemplateExercises,
+    ScheduleEntries,
+    DailyActivity,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e])
-      : super(e ?? driftDatabase(name: 'macrochef'));
+    : super(e ?? driftDatabase(name: 'macrochef'));
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) => m.createAll(),
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.addColumn(recipes, recipes.servings);
-            await m.addColumn(foodCache, foodCache.userOverride);
-            await m.createTable(groceryItems);
-          }
-          if (from < 3) {
-            await m.addColumn(foodCache, foodCache.gramsPerPiece);
-          }
-          if (from < 4) {
-            await m.createTable(weightEntries);
-          }
-          if (from < 5) {
-            await m.addColumn(foodCache, foodCache.fibre100);
-            await m.addColumn(foodCache, foodCache.sodium100);
-            await m.addColumn(logEntries, logEntries.fibre);
-          }
-          if (from < 6) {
-            await m.createTable(exercises);
-            await m.createTable(workoutSessions);
-            await m.createTable(setEntries);
-          }
-          if (from < 7) {
-            await m.createTable(workoutTemplates);
-            await m.createTable(templateExercises);
-          }
-          if (from < 8) {
-            await m.createTable(scheduleEntries);
-          }
-          if (from < 9) {
-            await m.createTable(dailyActivity);
-          }
-          if (from < 10) {
-            // Program → Day restructure. Each legacy template becomes a
-            // single-day program; the new day's id equals the template id, so
-            // child FKs (templateId) are already valid dayIds — re-key by a
-            // values-preserving column rename. (FK enforcement is off, so the
-            // stale FK target in stored DDL is harmless.)
-            await m.createTable(templateDays);
-            await m.database.customStatement(
-              'INSERT INTO template_days (id, template_id, name, position) '
-              'SELECT id, id, name, 0 FROM workout_templates;',
-            );
-            await m.database.customStatement(
-              'ALTER TABLE template_exercises RENAME COLUMN template_id TO day_id;',
-            );
-            await m.database.customStatement(
-              'ALTER TABLE schedule_entries RENAME COLUMN template_id TO day_id;',
-            );
-            await m.database.customStatement(
-              'ALTER TABLE workout_sessions RENAME COLUMN template_id TO day_id;',
-            );
-          }
-          if (from < 11) {
-            await m.addColumn(exercises, exercises.description);
-          }
-          if (from < 12) {
-            await m.addColumn(exercises, exercises.secondaryMuscles);
-          }
-          if (from < 13) {
-            await m.createTable(recipeNutritionCache);
-          }
-        },
-      );
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(recipes, recipes.servings);
+        await m.addColumn(foodCache, foodCache.userOverride);
+        await m.createTable(groceryItems);
+      }
+      if (from < 3) {
+        await m.addColumn(foodCache, foodCache.gramsPerPiece);
+      }
+      if (from < 4) {
+        await m.createTable(weightEntries);
+      }
+      if (from < 5) {
+        await m.addColumn(foodCache, foodCache.fibre100);
+        await m.addColumn(foodCache, foodCache.sodium100);
+        await m.addColumn(logEntries, logEntries.fibre);
+      }
+      if (from < 6) {
+        await m.createTable(exercises);
+        await m.createTable(workoutSessions);
+        await m.createTable(setEntries);
+      }
+      if (from < 7) {
+        await m.createTable(workoutTemplates);
+        await m.createTable(templateExercises);
+      }
+      if (from < 8) {
+        await m.createTable(scheduleEntries);
+      }
+      if (from < 9) {
+        await m.createTable(dailyActivity);
+      }
+      if (from < 10) {
+        // Program → Day restructure. Each legacy template becomes a
+        // single-day program; the new day's id equals the template id, so
+        // child FKs (templateId) are already valid dayIds — re-key by a
+        // values-preserving column rename. (FK enforcement is off, so the
+        // stale FK target in stored DDL is harmless.)
+        await m.createTable(templateDays);
+        await m.database.customStatement(
+          'INSERT INTO template_days (id, template_id, name, position) '
+          'SELECT id, id, name, 0 FROM workout_templates;',
+        );
+        await m.database.customStatement(
+          'ALTER TABLE template_exercises RENAME COLUMN template_id TO day_id;',
+        );
+        await m.database.customStatement(
+          'ALTER TABLE schedule_entries RENAME COLUMN template_id TO day_id;',
+        );
+        await m.database.customStatement(
+          'ALTER TABLE workout_sessions RENAME COLUMN template_id TO day_id;',
+        );
+      }
+      if (from < 11) {
+        await m.addColumn(exercises, exercises.description);
+      }
+      if (from < 12) {
+        await m.addColumn(exercises, exercises.secondaryMuscles);
+      }
+      if (from < 13) {
+        await m.createTable(recipeNutritionCache);
+      }
+      if (from < 14) {
+        await m.addColumn(foodCache, foodCache.basisQuantity);
+        await m.addColumn(foodCache, foodCache.basisUnit);
+        await m.addColumn(foodCache, foodCache.basisKcal);
+        await m.addColumn(foodCache, foodCache.basisProtein);
+        await m.addColumn(foodCache, foodCache.basisCarb);
+        await m.addColumn(foodCache, foodCache.basisFat);
+        await m.addColumn(foodCache, foodCache.basisNeedsReview);
+        await m.addColumn(logEntries, logEntries.portionQuantity);
+        await m.addColumn(logEntries, logEntries.portionUnit);
+        await migrateLegacyNutritionBases(this);
+        await delete(recipeNutritionCache).go();
+      }
+      if (from < 15) {
+        await m.addColumn(foodCache, foodCache.sourceUrl);
+        await m.addColumn(foodCache, foodCache.sourceTitle);
+        await m.addColumn(foodCache, foodCache.sourceRetrievedAt);
+        await m.addColumn(foodCache, foodCache.sourceInferredFields);
+        await m.createTable(adaptiveTargets);
+      }
+      if (from < 16) {
+        await m.addColumn(foodCache, foodCache.basisPhysicalGrams);
+      }
+    },
+  );
 }

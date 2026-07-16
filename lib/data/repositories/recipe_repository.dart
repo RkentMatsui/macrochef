@@ -10,9 +10,16 @@ class RecipeRepository {
     return db.transaction(() async {
       final id = await db
           .into(db.recipes)
-          .insert(RecipesCompanion.insert(title: r.title, servings: Value(r.servings)));
+          .insert(
+            RecipesCompanion.insert(
+              title: r.title,
+              servings: Value(r.servings),
+            ),
+          );
       for (final ing in r.ingredients) {
-        await db.into(db.recipeIngredients).insert(
+        await db
+            .into(db.recipeIngredients)
+            .insert(
               RecipeIngredientsCompanion.insert(
                 recipeId: id,
                 name: ing.name,
@@ -22,7 +29,9 @@ class RecipeRepository {
             );
       }
       for (var i = 0; i < r.steps.length; i++) {
-        await db.into(db.recipeSteps).insert(
+        await db
+            .into(db.recipeSteps)
+            .insert(
               RecipeStepsCompanion.insert(
                 recipeId: id,
                 position: i,
@@ -34,18 +43,19 @@ class RecipeRepository {
     });
   }
 
-  Future<List<Recipe>> all() => (db.select(db.recipes)
-        ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
-      .get();
+  Future<List<Recipe>> all() => (db.select(
+    db.recipes,
+  )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
 
   Future<List<String>> allTitles() async =>
       (await all()).map((r) => r.title).toList();
 
   Future<List<String>> stepsFor(int recipeId) async {
-    final rows = await (db.select(db.recipeSteps)
-          ..where((s) => s.recipeId.equals(recipeId))
-          ..orderBy([(s) => OrderingTerm.asc(s.position)]))
-        .get();
+    final rows =
+        await (db.select(db.recipeSteps)
+              ..where((s) => s.recipeId.equals(recipeId))
+              ..orderBy([(s) => OrderingTerm.asc(s.position)]))
+            .get();
     return rows.map((e) => e.stepText).toList();
   }
 
@@ -58,13 +68,15 @@ class RecipeRepository {
 
   Future<void> updateServings(int id, int servings) async {
     final n = servings < 1 ? 1 : servings;
-    await (db.update(db.recipes)..where((r) => r.id.equals(id)))
-        .write(RecipesCompanion(servings: Value(n)));
+    await (db.update(db.recipes)..where((r) => r.id.equals(id))).write(
+      RecipesCompanion(servings: Value(n)),
+    );
   }
 
   Future<int> servingsFor(int id) async {
-    final row = await (db.select(db.recipes)..where((r) => r.id.equals(id)))
-        .getSingleOrNull();
+    final row = await (db.select(
+      db.recipes,
+    )..where((r) => r.id.equals(id))).getSingleOrNull();
     return row?.servings ?? 1;
   }
 
@@ -92,21 +104,20 @@ class RecipeRepository {
     final qtyStr = grams == grams.roundToDouble()
         ? grams.toStringAsFixed(0)
         : grams.toString();
-    await (db.update(db.recipeIngredients)
-          ..where((t) => t.id.equals(target!.id)))
-        .write(RecipeIngredientsCompanion(
-      quantity: Value(qtyStr),
-      unit: Value(unit),
-    ));
+    await (db.update(
+      db.recipeIngredients,
+    )..where((t) => t.id.equals(target!.id))).write(
+      RecipeIngredientsCompanion(quantity: Value(qtyStr), unit: Value(unit)),
+    );
     return true;
   }
 
   /// Cached nutrition breakdown for [recipeId] — the ingredient-list signature
   /// it was computed from and the serialized breakdown — or null if none.
   Future<({String hash, String json})?> nutritionCache(int recipeId) async {
-    final row = await (db.select(db.recipeNutritionCache)
-          ..where((t) => t.recipeId.equals(recipeId)))
-        .getSingleOrNull();
+    final row = await (db.select(
+      db.recipeNutritionCache,
+    )..where((t) => t.recipeId.equals(recipeId))).getSingleOrNull();
     return row == null
         ? null
         : (hash: row.ingredientsHash, json: row.breakdownJson);
@@ -118,7 +129,9 @@ class RecipeRepository {
     String ingredientsHash,
     String breakdownJson,
   ) async {
-    await db.into(db.recipeNutritionCache).insertOnConflictUpdate(
+    await db
+        .into(db.recipeNutritionCache)
+        .insertOnConflictUpdate(
           RecipeNutritionCacheCompanion(
             recipeId: Value(recipeId),
             ingredientsHash: Value(ingredientsHash),
@@ -129,26 +142,67 @@ class RecipeRepository {
 
   /// Drop the cached breakdown for [recipeId] (e.g. after an ingredient edit).
   Future<void> deleteNutritionCache(int recipeId) async {
-    await (db.delete(db.recipeNutritionCache)
-          ..where((t) => t.recipeId.equals(recipeId)))
-        .go();
+    await (db.delete(
+      db.recipeNutritionCache,
+    )..where((t) => t.recipeId.equals(recipeId))).go();
+  }
+
+  /// Permanently remove a recipe and its owned rows while retaining historical
+  /// log entries. Logs keep their displayed food name and macros, but no longer
+  /// reference the deleted recipe.
+  Future<void> delete(int id) async {
+    await db.transaction(() async {
+      await (db.update(db.logEntries)..where((e) => e.recipeId.equals(id)))
+          .write(const LogEntriesCompanion(recipeId: Value(null)));
+      await (db.delete(
+        db.recipeNutritionCache,
+      )..where((c) => c.recipeId.equals(id))).go();
+      await (db.delete(
+        db.recipeIngredients,
+      )..where((i) => i.recipeId.equals(id))).go();
+      await (db.delete(
+        db.recipeSteps,
+      )..where((s) => s.recipeId.equals(id))).go();
+      await (db.delete(db.recipes)..where((r) => r.id.equals(id))).go();
+    });
   }
 
   Future<void> updateFull(int id, ParsedRecipe r) async {
     await db.transaction(() async {
       await (db.update(db.recipes)..where((t) => t.id.equals(id))).write(
-          RecipesCompanion(
-              title: Value(r.title), servings: Value(r.servings < 1 ? 1 : r.servings)));
-      await (db.delete(db.recipeIngredients)..where((t) => t.recipeId.equals(id))).go();
+        RecipesCompanion(
+          title: Value(r.title),
+          servings: Value(r.servings < 1 ? 1 : r.servings),
+        ),
+      );
+      await (db.delete(
+        db.recipeIngredients,
+      )..where((t) => t.recipeId.equals(id))).go();
       for (final ing in r.ingredients) {
-        await db.into(db.recipeIngredients).insert(RecipeIngredientsCompanion.insert(
-            recipeId: id, name: ing.name,
-            quantity: Value(ing.quantity), unit: Value(ing.unit)));
+        await db
+            .into(db.recipeIngredients)
+            .insert(
+              RecipeIngredientsCompanion.insert(
+                recipeId: id,
+                name: ing.name,
+                quantity: Value(ing.quantity),
+                unit: Value(ing.unit),
+              ),
+            );
       }
-      await (db.delete(db.recipeSteps)..where((t) => t.recipeId.equals(id))).go();
+      await (db.delete(
+        db.recipeSteps,
+      )..where((t) => t.recipeId.equals(id))).go();
       for (var i = 0; i < r.steps.length; i++) {
-        await db.into(db.recipeSteps).insert(RecipeStepsCompanion.insert(
-            recipeId: id, position: i, stepText: r.steps[i]));
+        await db
+            .into(db.recipeSteps)
+            .insert(
+              RecipeStepsCompanion.insert(
+                recipeId: id,
+                position: i,
+                stepText: r.steps[i],
+              ),
+            );
       }
     });
   }

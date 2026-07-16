@@ -2,10 +2,12 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macrochef/data/database.dart';
 import 'package:macrochef/data/repositories/log_repository.dart';
+import 'package:macrochef/data/repositories/food_cache_repository.dart';
 import 'package:macrochef/data/repositories/target_repository.dart';
 import 'package:macrochef/models/daily.dart';
 import 'package:macrochef/models/macros.dart';
 import 'package:macrochef/services/daily_log_service.dart';
+import 'package:macrochef/services/custom_food_service.dart';
 
 void main() {
   late AppDatabase db;
@@ -16,6 +18,7 @@ void main() {
     service = DailyLogService(
       logs: LogRepository(db),
       targets: TargetRepository(db),
+      customFoods: CustomFoodService(FoodCacheRepository(db)),
     );
   });
 
@@ -38,7 +41,12 @@ void main() {
       date,
       name: 'white rice',
       grams: 150,
-      macros: const MacroValues(kcal: 195, protein: 4.05, carb: 43.35, fat: 0.45),
+      macros: const MacroValues(
+        kcal: 195,
+        protein: 4.05,
+        carb: 43.35,
+        fat: 0.45,
+      ),
       source: MacroSource.usda,
     );
 
@@ -49,16 +57,20 @@ void main() {
   });
 
   test('copyDay re-logs every entry from one day to another', () async {
-    await service.log('2026-06-13',
-        name: 'oats',
-        grams: 80,
-        macros: const MacroValues(kcal: 300, protein: 10, carb: 50, fat: 6),
-        source: MacroSource.usda);
-    await service.log('2026-06-13',
-        name: 'eggs',
-        grams: 100,
-        macros: const MacroValues(kcal: 155, protein: 13, carb: 1, fat: 11),
-        source: MacroSource.manual);
+    await service.log(
+      '2026-06-13',
+      name: 'oats',
+      grams: 80,
+      macros: const MacroValues(kcal: 300, protein: 10, carb: 50, fat: 6),
+      source: MacroSource.usda,
+    );
+    await service.log(
+      '2026-06-13',
+      name: 'eggs',
+      grams: 100,
+      macros: const MacroValues(kcal: 155, protein: 13, carb: 1, fat: 11),
+      source: MacroSource.manual,
+    );
 
     final n = await service.copyDay('2026-06-13', '2026-06-14');
     expect(n, 2);
@@ -71,6 +83,27 @@ void main() {
 
   test('copyDay returns 0 when the source day is empty', () async {
     expect(await service.copyDay('2026-01-01', '2026-06-14'), 0);
+  });
+
+  test('preserves a basis-defined portion without inventing grams', () async {
+    await service.log(
+      '2026-06-14',
+      name: 'Iced milk',
+      grams: 0,
+      macros: const MacroValues(kcal: 120, protein: 8, carb: 12, fat: 4),
+      source: MacroSource.manual,
+      portionQuantity: 250,
+      portionUnit: 'ml',
+    );
+
+    final entry = (await db.select(db.logEntries).getSingle());
+    expect(entry.grams, 0);
+    expect(entry.portionQuantity, 250);
+    expect(entry.portionUnit, 'ml');
+    expect(entry.kcal, 120);
+    expect(entry.protein, 8);
+    expect(entry.carb, 12);
+    expect(entry.fat, 4);
   });
 
   test('setTarget persists and is returned in totals', () async {
@@ -123,7 +156,12 @@ void main() {
       name: 'oats',
       grams: 100,
       macros: const MacroValues(
-          kcal: 370, protein: 13, carb: 66, fat: 7, fibre: 10.6),
+        kcal: 370,
+        protein: 13,
+        carb: 66,
+        fat: 7,
+        fibre: 10.6,
+      ),
       source: MacroSource.usda,
     );
 
@@ -132,7 +170,12 @@ void main() {
       name: 'broccoli',
       grams: 100,
       macros: const MacroValues(
-          kcal: 34, protein: 2.8, carb: 6.6, fat: 0.4, fibre: 2.4),
+        kcal: 34,
+        protein: 2.8,
+        carb: 6.6,
+        fat: 0.4,
+        fibre: 2.4,
+      ),
       source: MacroSource.usda,
     );
 
@@ -156,30 +199,152 @@ void main() {
     expect(totals.consumed.fibre, isNull);
   });
 
+  test(
+    'editing remembers the exact gram portion and replaces it on re-edit',
+    () async {
+      await service.log(
+        '2026-06-16',
+        name: 'Chicken curry',
+        grams: 240,
+        macros: const MacroValues(kcal: 510, protein: 35, carb: 48, fat: 19),
+        source: MacroSource.manual,
+      );
+      final entry = await db.select(db.logEntries).getSingle();
+
+      await service.updateAndRemember(
+        entry.id,
+        name: 'Chicken curry',
+        grams: 240,
+        macros: const MacroValues(kcal: 510, protein: 35, carb: 48, fat: 19),
+        portionQuantity: 240,
+        portionUnit: 'g',
+        physicalGrams: 240,
+      );
+      var food = await FoodCacheRepository(db).find('Chicken curry');
+      expect(food!.basis!.quantity, 240);
+      expect(food.basis!.unit, 'g');
+      expect(food.basis!.macros.kcal, 510);
+
+      await service.updateAndRemember(
+        entry.id,
+        name: 'Chicken curry',
+        grams: 350,
+        macros: const MacroValues(kcal: 620, protein: 42, carb: 55, fat: 22),
+        portionQuantity: 350,
+        portionUnit: 'g',
+        physicalGrams: 350,
+      );
+      food = await FoodCacheRepository(db).find('Chicken curry');
+      expect(food!.basis!.quantity, 350);
+      expect(food.basis!.macros.kcal, 620);
+    },
+  );
+
+  test('editing a serving basis without grams remembers that basis', () async {
+    await service.log(
+      '2026-06-16',
+      name: 'Cafe bowl',
+      grams: 0,
+      macros: const MacroValues(kcal: 500, protein: 30, carb: 50, fat: 20),
+      source: MacroSource.manual,
+      portionQuantity: 1,
+      portionUnit: 'serving',
+    );
+    final entry = await db.select(db.logEntries).getSingle();
+    await service.updateAndRemember(
+      entry.id,
+      name: 'Cafe bowl',
+      grams: 0,
+      macros: const MacroValues(kcal: 500, protein: 30, carb: 50, fat: 20),
+      portionQuantity: 1,
+      portionUnit: 'serving',
+    );
+    final food = await FoodCacheRepository(db).find('Cafe bowl');
+    expect(food!.basis!.unit, 'serving');
+    expect(food.perHundred.kcal, 0);
+  });
+
+  test('editing a recipe entry does not create a custom food', () async {
+    await service.log(
+      '2026-06-16',
+      name: 'Recipe curry',
+      grams: 240,
+      macros: const MacroValues(kcal: 510, protein: 35, carb: 48, fat: 19),
+      source: MacroSource.manual,
+      recipeId: 42,
+    );
+    final entry = await db.select(db.logEntries).getSingle();
+    await service.updateAndRemember(
+      entry.id,
+      name: 'Recipe curry',
+      grams: 250,
+      macros: const MacroValues(kcal: 530, protein: 36, carb: 50, fat: 20),
+      portionQuantity: 250,
+      portionUnit: 'g',
+      physicalGrams: 250,
+    );
+    expect(await FoodCacheRepository(db).find('Recipe curry'), isNull);
+    expect((await db.select(db.logEntries).getSingle()).grams, 250);
+  });
+
+  test('failed custom persistence rolls back the log edit', () async {
+    await service.log(
+      '2026-06-16',
+      name: 'Curry',
+      grams: 240,
+      macros: const MacroValues(kcal: 510, protein: 35, carb: 48, fat: 19),
+      source: MacroSource.manual,
+    );
+    final entry = await db.select(db.logEntries).getSingle();
+    await expectLater(
+      service.updateAndRemember(
+        entry.id,
+        name: 'Curry',
+        grams: 350,
+        macros: const MacroValues(kcal: -1, protein: 42, carb: 55, fat: 22),
+        portionQuantity: 350,
+        portionUnit: 'g',
+        physicalGrams: 350,
+      ),
+      throwsArgumentError,
+    );
+    final after = await db.select(db.logEntries).getSingle();
+    expect(after.grams, 240);
+    expect(after.kcal, 510);
+  });
+
   group('frequentFoods / relog', () {
     test('ranks by occurrence count, carries last-logged portion', () async {
       // chicken logged 3×, rice 1× — across several days within the window.
-      await service.log('2026-06-10',
-          name: 'chicken breast',
-          grams: 200,
-          macros: const MacroValues(kcal: 330, protein: 62, carb: 0, fat: 7.2),
-          source: MacroSource.off);
-      await service.log('2026-06-11',
-          name: 'white rice',
-          grams: 150,
-          macros: const MacroValues(kcal: 195, protein: 4, carb: 43, fat: 0.5),
-          source: MacroSource.usda);
-      await service.log('2026-06-12',
-          name: 'chicken breast',
-          grams: 220,
-          macros: const MacroValues(kcal: 363, protein: 68, carb: 0, fat: 7.9),
-          source: MacroSource.off);
+      await service.log(
+        '2026-06-10',
+        name: 'chicken breast',
+        grams: 200,
+        macros: const MacroValues(kcal: 330, protein: 62, carb: 0, fat: 7.2),
+        source: MacroSource.off,
+      );
+      await service.log(
+        '2026-06-11',
+        name: 'white rice',
+        grams: 150,
+        macros: const MacroValues(kcal: 195, protein: 4, carb: 43, fat: 0.5),
+        source: MacroSource.usda,
+      );
+      await service.log(
+        '2026-06-12',
+        name: 'chicken breast',
+        grams: 220,
+        macros: const MacroValues(kcal: 363, protein: 68, carb: 0, fat: 7.9),
+        source: MacroSource.off,
+      );
       // Most-recent chicken portion = 180g — this is the one re-log should use.
-      await service.log('2026-06-14',
-          name: 'chicken breast',
-          grams: 180,
-          macros: const MacroValues(kcal: 297, protein: 56, carb: 0, fat: 6.5),
-          source: MacroSource.off);
+      await service.log(
+        '2026-06-14',
+        name: 'chicken breast',
+        grams: 180,
+        macros: const MacroValues(kcal: 297, protein: 56, carb: 0, fat: 6.5),
+        source: MacroSource.off,
+      );
 
       final freq = await service.frequentFoods('2026-06-15');
       expect(freq.first.name, 'chicken breast');
@@ -193,23 +358,32 @@ void main() {
     });
 
     test('excludes foods outside the lookback window', () async {
-      await service.log('2026-01-01',
-          name: 'old food',
-          grams: 100,
-          macros: const MacroValues(kcal: 100, protein: 1, carb: 1, fat: 1),
-          source: MacroSource.manual);
+      await service.log(
+        '2026-01-01',
+        name: 'old food',
+        grams: 100,
+        macros: const MacroValues(kcal: 100, protein: 1, carb: 1, fat: 1),
+        source: MacroSource.manual,
+      );
 
       final freq = await service.frequentFoods('2026-06-15', windowDays: 60);
       expect(freq.where((f) => f.name == 'old food'), isEmpty);
     });
 
     test('relog re-inserts the same portion to a new date', () async {
-      await service.log('2026-06-10',
-          name: 'chicken breast',
-          grams: 200,
-          macros: const MacroValues(
-              kcal: 330, protein: 62, carb: 0, fat: 7.2, fibre: 0),
-          source: MacroSource.off);
+      await service.log(
+        '2026-06-10',
+        name: 'chicken breast',
+        grams: 200,
+        macros: const MacroValues(
+          kcal: 330,
+          protein: 62,
+          carb: 0,
+          fat: 7.2,
+          fibre: 0,
+        ),
+        source: MacroSource.off,
+      );
 
       final freq = await service.frequentFoods('2026-06-15');
       await service.relog('2026-06-15', freq.first);
@@ -221,11 +395,13 @@ void main() {
 
     test('limit caps the number of foods returned', () async {
       for (var i = 0; i < 20; i++) {
-        await service.log('2026-06-10',
-            name: 'food $i',
-            grams: 100,
-            macros: const MacroValues(kcal: 100, protein: 1, carb: 1, fat: 1),
-            source: MacroSource.manual);
+        await service.log(
+          '2026-06-10',
+          name: 'food $i',
+          grams: 100,
+          macros: const MacroValues(kcal: 100, protein: 1, carb: 1, fat: 1),
+          source: MacroSource.manual,
+        );
       }
       final freq = await service.frequentFoods('2026-06-15', limit: 5);
       expect(freq.length, 5);

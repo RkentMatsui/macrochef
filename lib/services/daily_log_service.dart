@@ -4,6 +4,7 @@ import '../models/daily.dart';
 import '../data/database.dart';
 import '../data/repositories/log_repository.dart';
 import '../data/repositories/target_repository.dart';
+import 'custom_food_service.dart';
 
 class FoodContribution {
   final String name;
@@ -28,6 +29,8 @@ class FrequentFood {
   final MacroValues macros;
   final MacroSource source;
   final int? recipeId;
+  final double? portionQuantity;
+  final String? portionUnit;
 
   /// Number of times this food was logged in the lookback window.
   final int count;
@@ -38,6 +41,8 @@ class FrequentFood {
     required this.macros,
     required this.source,
     required this.recipeId,
+    this.portionQuantity,
+    this.portionUnit,
     required this.count,
   });
 }
@@ -45,8 +50,13 @@ class FrequentFood {
 class DailyLogService {
   final LogRepository logs;
   final TargetRepository targets;
+  final CustomFoodService? customFoods;
 
-  DailyLogService({required this.logs, required this.targets});
+  DailyLogService({
+    required this.logs,
+    required this.targets,
+    this.customFoods,
+  });
 
   Future<void> log(
     String date, {
@@ -55,19 +65,25 @@ class DailyLogService {
     required MacroValues macros,
     required MacroSource source,
     int? recipeId,
+    double? portionQuantity,
+    String? portionUnit,
   }) async {
-    await logs.add(LogEntriesCompanion.insert(
-      date: date,
-      foodName: name,
-      grams: grams,
-      kcal: macros.kcal,
-      protein: macros.protein,
-      carb: macros.carb,
-      fat: macros.fat,
-      fibre: Value(macros.fibre),
-      source: source.name,
-      recipeId: Value(recipeId),
-    ));
+    await logs.add(
+      LogEntriesCompanion.insert(
+        date: date,
+        foodName: name,
+        grams: grams,
+        kcal: macros.kcal,
+        protein: macros.protein,
+        carb: macros.carb,
+        fat: macros.fat,
+        fibre: Value(macros.fibre),
+        source: source.name,
+        recipeId: Value(recipeId),
+        portionQuantity: Value(portionQuantity),
+        portionUnit: Value(portionUnit),
+      ),
+    );
   }
 
   /// Overwrites an existing entry's name, weight and macros. Date, source and
@@ -77,6 +93,8 @@ class DailyLogService {
     required String name,
     required double grams,
     required MacroValues macros,
+    double? portionQuantity,
+    String? portionUnit,
   }) async {
     await logs.update(
       id,
@@ -88,15 +106,63 @@ class DailyLogService {
         carb: Value(macros.carb),
         fat: Value(macros.fat),
         fibre: Value(macros.fibre),
+        portionQuantity: Value(portionQuantity),
+        portionUnit: Value(portionUnit),
       ),
     );
+  }
+
+  /// Updates a logged food and remembers its current authored portion as one
+  /// transaction. Recipe entries deliberately remain recipe-linked only.
+  ///
+  /// The caller supplies the portion exactly as it appears in the editor. The
+  /// compatibility per-100g values are derived by [CustomFoodService], but the
+  /// persisted [NutritionBasis] is never rewritten to 100 g.
+  Future<void> updateAndRemember(
+    int id, {
+    required String name,
+    required double grams,
+    required MacroValues macros,
+    required double portionQuantity,
+    required String portionUnit,
+    double? physicalGrams,
+  }) async {
+    final customFoodService = customFoods;
+    if (customFoodService == null) {
+      throw StateError('Custom food persistence is unavailable.');
+    }
+    await logs.db.transaction(() async {
+      final existing = await logs.findById(id);
+      if (existing == null) throw StateError('Logged food no longer exists.');
+
+      await update(
+        id,
+        name: name,
+        grams: grams,
+        macros: macros,
+        portionQuantity: portionQuantity,
+        portionUnit: portionUnit,
+      );
+      if (existing.recipeId != null) return;
+
+      await customFoodService.remember(
+        name: name,
+        basis: NutritionBasis(
+          quantity: portionQuantity,
+          unit: portionUnit,
+          macros: macros,
+        ),
+        physicalGrams: physicalGrams,
+      );
+    });
   }
 
   Future<DailyTotals> totals(String date) async {
     final entries = await logs.forDate(date);
     var consumed = MacroValues.zero;
     for (final e in entries) {
-      consumed = consumed +
+      consumed =
+          consumed +
           MacroValues(
             kcal: e.kcal,
             protein: e.protein,
@@ -130,8 +196,15 @@ class DailyLogService {
     final byDate = <String, MacroValues>{};
     for (final e in entries) {
       final prev = byDate[e.date] ?? MacroValues.zero;
-      byDate[e.date] = prev +
-          MacroValues(kcal: e.kcal, protein: e.protein, carb: e.carb, fat: e.fat, fibre: e.fibre);
+      byDate[e.date] =
+          prev +
+          MacroValues(
+            kcal: e.kcal,
+            protein: e.protein,
+            carb: e.carb,
+            fat: e.fat,
+            fibre: e.fibre,
+          );
     }
 
     final out = <DailyTotals>[];
@@ -144,8 +217,11 @@ class DailyLogService {
 
   /// Aggregates entries in [start, end] by foodName: summed kcal + protein and
   /// occurrence count, sorted by kcal desc. Capped at [limit] (default 10).
-  Future<List<FoodContribution>> topFoods(String start, String end,
-      {int limit = 10}) async {
+  Future<List<FoodContribution>> topFoods(
+    String start,
+    String end, {
+    int limit = 10,
+  }) async {
     final entries = await logs.forDateRange(start, end);
     final byName = <String, FoodContribution>{};
     for (final e in entries) {
@@ -197,15 +273,19 @@ class DailyLogService {
         name: e.foodName,
         grams: e.grams,
         macros: MacroValues(
-            kcal: e.kcal,
-            protein: e.protein,
-            carb: e.carb,
-            fat: e.fat,
-            fibre: e.fibre),
+          kcal: e.kcal,
+          protein: e.protein,
+          carb: e.carb,
+          fat: e.fat,
+          fibre: e.fibre,
+        ),
         source: MacroSource.values.firstWhere(
-            (s) => s.name == e.source,
-            orElse: () => MacroSource.manual),
+          (s) => s.name == e.source,
+          orElse: () => MacroSource.manual,
+        ),
         recipeId: e.recipeId,
+        portionQuantity: e.portionQuantity,
+        portionUnit: e.portionUnit,
         count: r.count,
       );
     }).toList();
@@ -222,15 +302,19 @@ class DailyLogService {
         name: e.foodName,
         grams: e.grams,
         macros: MacroValues(
-            kcal: e.kcal,
-            protein: e.protein,
-            carb: e.carb,
-            fat: e.fat,
-            fibre: e.fibre),
+          kcal: e.kcal,
+          protein: e.protein,
+          carb: e.carb,
+          fat: e.fat,
+          fibre: e.fibre,
+        ),
         source: MacroSource.values.firstWhere(
-            (s) => s.name == e.source,
-            orElse: () => MacroSource.manual),
+          (s) => s.name == e.source,
+          orElse: () => MacroSource.manual,
+        ),
         recipeId: e.recipeId,
+        portionQuantity: e.portionQuantity,
+        portionUnit: e.portionUnit,
       );
     }
     return entries.length;
@@ -246,6 +330,8 @@ class DailyLogService {
       macros: food.macros,
       source: food.source,
       recipeId: food.recipeId,
+      portionQuantity: food.portionQuantity,
+      portionUnit: food.portionUnit,
     );
   }
 
