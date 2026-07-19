@@ -2626,6 +2626,584 @@ class FoodCacheCompanion extends UpdateCompanion<FoodCacheData> {
   }
 }
 
+class $FoodUnitWeightsTable extends FoodUnitWeights
+    with TableInfo<$FoodUnitWeightsTable, FoodUnitWeightRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FoodUnitWeightsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _foodKeyMeta = const VerificationMeta(
+    'foodKey',
+  );
+  @override
+  late final GeneratedColumn<String> foodKey = GeneratedColumn<String>(
+    'food_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _foodNameMeta = const VerificationMeta(
+    'foodName',
+  );
+  @override
+  late final GeneratedColumn<String> foodName = GeneratedColumn<String>(
+    'food_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _unitMeta = const VerificationMeta('unit');
+  @override
+  late final GeneratedColumn<String> unit = GeneratedColumn<String>(
+    'unit',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _gramsPerUnitMeta = const VerificationMeta(
+    'gramsPerUnit',
+  );
+  @override
+  late final GeneratedColumn<double> gramsPerUnit = GeneratedColumn<double>(
+    'grams_per_unit',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceUrlMeta = const VerificationMeta(
+    'sourceUrl',
+  );
+  @override
+  late final GeneratedColumn<String> sourceUrl = GeneratedColumn<String>(
+    'source_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceTitleMeta = const VerificationMeta(
+    'sourceTitle',
+  );
+  @override
+  late final GeneratedColumn<String> sourceTitle = GeneratedColumn<String>(
+    'source_title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceRetrievedAtMeta = const VerificationMeta(
+    'sourceRetrievedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> sourceRetrievedAt =
+      GeneratedColumn<DateTime>(
+        'source_retrieved_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    foodKey,
+    foodName,
+    unit,
+    gramsPerUnit,
+    kind,
+    sourceUrl,
+    sourceTitle,
+    sourceRetrievedAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'food_unit_weights';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FoodUnitWeightRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('food_key')) {
+      context.handle(
+        _foodKeyMeta,
+        foodKey.isAcceptableOrUnknown(data['food_key']!, _foodKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_foodKeyMeta);
+    }
+    if (data.containsKey('food_name')) {
+      context.handle(
+        _foodNameMeta,
+        foodName.isAcceptableOrUnknown(data['food_name']!, _foodNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_foodNameMeta);
+    }
+    if (data.containsKey('unit')) {
+      context.handle(
+        _unitMeta,
+        unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_unitMeta);
+    }
+    if (data.containsKey('grams_per_unit')) {
+      context.handle(
+        _gramsPerUnitMeta,
+        gramsPerUnit.isAcceptableOrUnknown(
+          data['grams_per_unit']!,
+          _gramsPerUnitMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_gramsPerUnitMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('source_url')) {
+      context.handle(
+        _sourceUrlMeta,
+        sourceUrl.isAcceptableOrUnknown(data['source_url']!, _sourceUrlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceUrlMeta);
+    }
+    if (data.containsKey('source_title')) {
+      context.handle(
+        _sourceTitleMeta,
+        sourceTitle.isAcceptableOrUnknown(
+          data['source_title']!,
+          _sourceTitleMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceTitleMeta);
+    }
+    if (data.containsKey('source_retrieved_at')) {
+      context.handle(
+        _sourceRetrievedAtMeta,
+        sourceRetrievedAt.isAcceptableOrUnknown(
+          data['source_retrieved_at']!,
+          _sourceRetrievedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceRetrievedAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {foodKey, unit};
+  @override
+  FoodUnitWeightRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FoodUnitWeightRow(
+      foodKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}food_key'],
+      )!,
+      foodName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}food_name'],
+      )!,
+      unit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit'],
+      )!,
+      gramsPerUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}grams_per_unit'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      sourceUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_url'],
+      )!,
+      sourceTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_title'],
+      )!,
+      sourceRetrievedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}source_retrieved_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $FoodUnitWeightsTable createAlias(String alias) {
+    return $FoodUnitWeightsTable(attachedDatabase, alias);
+  }
+}
+
+class FoodUnitWeightRow extends DataClass
+    implements Insertable<FoodUnitWeightRow> {
+  final String foodKey;
+  final String foodName;
+  final String unit;
+  final double gramsPerUnit;
+  final String kind;
+  final String sourceUrl;
+  final String sourceTitle;
+  final DateTime sourceRetrievedAt;
+  final DateTime updatedAt;
+  const FoodUnitWeightRow({
+    required this.foodKey,
+    required this.foodName,
+    required this.unit,
+    required this.gramsPerUnit,
+    required this.kind,
+    required this.sourceUrl,
+    required this.sourceTitle,
+    required this.sourceRetrievedAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['food_key'] = Variable<String>(foodKey);
+    map['food_name'] = Variable<String>(foodName);
+    map['unit'] = Variable<String>(unit);
+    map['grams_per_unit'] = Variable<double>(gramsPerUnit);
+    map['kind'] = Variable<String>(kind);
+    map['source_url'] = Variable<String>(sourceUrl);
+    map['source_title'] = Variable<String>(sourceTitle);
+    map['source_retrieved_at'] = Variable<DateTime>(sourceRetrievedAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  FoodUnitWeightsCompanion toCompanion(bool nullToAbsent) {
+    return FoodUnitWeightsCompanion(
+      foodKey: Value(foodKey),
+      foodName: Value(foodName),
+      unit: Value(unit),
+      gramsPerUnit: Value(gramsPerUnit),
+      kind: Value(kind),
+      sourceUrl: Value(sourceUrl),
+      sourceTitle: Value(sourceTitle),
+      sourceRetrievedAt: Value(sourceRetrievedAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory FoodUnitWeightRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FoodUnitWeightRow(
+      foodKey: serializer.fromJson<String>(json['foodKey']),
+      foodName: serializer.fromJson<String>(json['foodName']),
+      unit: serializer.fromJson<String>(json['unit']),
+      gramsPerUnit: serializer.fromJson<double>(json['gramsPerUnit']),
+      kind: serializer.fromJson<String>(json['kind']),
+      sourceUrl: serializer.fromJson<String>(json['sourceUrl']),
+      sourceTitle: serializer.fromJson<String>(json['sourceTitle']),
+      sourceRetrievedAt: serializer.fromJson<DateTime>(
+        json['sourceRetrievedAt'],
+      ),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'foodKey': serializer.toJson<String>(foodKey),
+      'foodName': serializer.toJson<String>(foodName),
+      'unit': serializer.toJson<String>(unit),
+      'gramsPerUnit': serializer.toJson<double>(gramsPerUnit),
+      'kind': serializer.toJson<String>(kind),
+      'sourceUrl': serializer.toJson<String>(sourceUrl),
+      'sourceTitle': serializer.toJson<String>(sourceTitle),
+      'sourceRetrievedAt': serializer.toJson<DateTime>(sourceRetrievedAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  FoodUnitWeightRow copyWith({
+    String? foodKey,
+    String? foodName,
+    String? unit,
+    double? gramsPerUnit,
+    String? kind,
+    String? sourceUrl,
+    String? sourceTitle,
+    DateTime? sourceRetrievedAt,
+    DateTime? updatedAt,
+  }) => FoodUnitWeightRow(
+    foodKey: foodKey ?? this.foodKey,
+    foodName: foodName ?? this.foodName,
+    unit: unit ?? this.unit,
+    gramsPerUnit: gramsPerUnit ?? this.gramsPerUnit,
+    kind: kind ?? this.kind,
+    sourceUrl: sourceUrl ?? this.sourceUrl,
+    sourceTitle: sourceTitle ?? this.sourceTitle,
+    sourceRetrievedAt: sourceRetrievedAt ?? this.sourceRetrievedAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  FoodUnitWeightRow copyWithCompanion(FoodUnitWeightsCompanion data) {
+    return FoodUnitWeightRow(
+      foodKey: data.foodKey.present ? data.foodKey.value : this.foodKey,
+      foodName: data.foodName.present ? data.foodName.value : this.foodName,
+      unit: data.unit.present ? data.unit.value : this.unit,
+      gramsPerUnit: data.gramsPerUnit.present
+          ? data.gramsPerUnit.value
+          : this.gramsPerUnit,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      sourceUrl: data.sourceUrl.present ? data.sourceUrl.value : this.sourceUrl,
+      sourceTitle: data.sourceTitle.present
+          ? data.sourceTitle.value
+          : this.sourceTitle,
+      sourceRetrievedAt: data.sourceRetrievedAt.present
+          ? data.sourceRetrievedAt.value
+          : this.sourceRetrievedAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FoodUnitWeightRow(')
+          ..write('foodKey: $foodKey, ')
+          ..write('foodName: $foodName, ')
+          ..write('unit: $unit, ')
+          ..write('gramsPerUnit: $gramsPerUnit, ')
+          ..write('kind: $kind, ')
+          ..write('sourceUrl: $sourceUrl, ')
+          ..write('sourceTitle: $sourceTitle, ')
+          ..write('sourceRetrievedAt: $sourceRetrievedAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    foodKey,
+    foodName,
+    unit,
+    gramsPerUnit,
+    kind,
+    sourceUrl,
+    sourceTitle,
+    sourceRetrievedAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FoodUnitWeightRow &&
+          other.foodKey == this.foodKey &&
+          other.foodName == this.foodName &&
+          other.unit == this.unit &&
+          other.gramsPerUnit == this.gramsPerUnit &&
+          other.kind == this.kind &&
+          other.sourceUrl == this.sourceUrl &&
+          other.sourceTitle == this.sourceTitle &&
+          other.sourceRetrievedAt == this.sourceRetrievedAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class FoodUnitWeightsCompanion extends UpdateCompanion<FoodUnitWeightRow> {
+  final Value<String> foodKey;
+  final Value<String> foodName;
+  final Value<String> unit;
+  final Value<double> gramsPerUnit;
+  final Value<String> kind;
+  final Value<String> sourceUrl;
+  final Value<String> sourceTitle;
+  final Value<DateTime> sourceRetrievedAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const FoodUnitWeightsCompanion({
+    this.foodKey = const Value.absent(),
+    this.foodName = const Value.absent(),
+    this.unit = const Value.absent(),
+    this.gramsPerUnit = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.sourceUrl = const Value.absent(),
+    this.sourceTitle = const Value.absent(),
+    this.sourceRetrievedAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FoodUnitWeightsCompanion.insert({
+    required String foodKey,
+    required String foodName,
+    required String unit,
+    required double gramsPerUnit,
+    required String kind,
+    required String sourceUrl,
+    required String sourceTitle,
+    required DateTime sourceRetrievedAt,
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : foodKey = Value(foodKey),
+       foodName = Value(foodName),
+       unit = Value(unit),
+       gramsPerUnit = Value(gramsPerUnit),
+       kind = Value(kind),
+       sourceUrl = Value(sourceUrl),
+       sourceTitle = Value(sourceTitle),
+       sourceRetrievedAt = Value(sourceRetrievedAt);
+  static Insertable<FoodUnitWeightRow> custom({
+    Expression<String>? foodKey,
+    Expression<String>? foodName,
+    Expression<String>? unit,
+    Expression<double>? gramsPerUnit,
+    Expression<String>? kind,
+    Expression<String>? sourceUrl,
+    Expression<String>? sourceTitle,
+    Expression<DateTime>? sourceRetrievedAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (foodKey != null) 'food_key': foodKey,
+      if (foodName != null) 'food_name': foodName,
+      if (unit != null) 'unit': unit,
+      if (gramsPerUnit != null) 'grams_per_unit': gramsPerUnit,
+      if (kind != null) 'kind': kind,
+      if (sourceUrl != null) 'source_url': sourceUrl,
+      if (sourceTitle != null) 'source_title': sourceTitle,
+      if (sourceRetrievedAt != null) 'source_retrieved_at': sourceRetrievedAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FoodUnitWeightsCompanion copyWith({
+    Value<String>? foodKey,
+    Value<String>? foodName,
+    Value<String>? unit,
+    Value<double>? gramsPerUnit,
+    Value<String>? kind,
+    Value<String>? sourceUrl,
+    Value<String>? sourceTitle,
+    Value<DateTime>? sourceRetrievedAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return FoodUnitWeightsCompanion(
+      foodKey: foodKey ?? this.foodKey,
+      foodName: foodName ?? this.foodName,
+      unit: unit ?? this.unit,
+      gramsPerUnit: gramsPerUnit ?? this.gramsPerUnit,
+      kind: kind ?? this.kind,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
+      sourceTitle: sourceTitle ?? this.sourceTitle,
+      sourceRetrievedAt: sourceRetrievedAt ?? this.sourceRetrievedAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (foodKey.present) {
+      map['food_key'] = Variable<String>(foodKey.value);
+    }
+    if (foodName.present) {
+      map['food_name'] = Variable<String>(foodName.value);
+    }
+    if (unit.present) {
+      map['unit'] = Variable<String>(unit.value);
+    }
+    if (gramsPerUnit.present) {
+      map['grams_per_unit'] = Variable<double>(gramsPerUnit.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (sourceUrl.present) {
+      map['source_url'] = Variable<String>(sourceUrl.value);
+    }
+    if (sourceTitle.present) {
+      map['source_title'] = Variable<String>(sourceTitle.value);
+    }
+    if (sourceRetrievedAt.present) {
+      map['source_retrieved_at'] = Variable<DateTime>(sourceRetrievedAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FoodUnitWeightsCompanion(')
+          ..write('foodKey: $foodKey, ')
+          ..write('foodName: $foodName, ')
+          ..write('unit: $unit, ')
+          ..write('gramsPerUnit: $gramsPerUnit, ')
+          ..write('kind: $kind, ')
+          ..write('sourceUrl: $sourceUrl, ')
+          ..write('sourceTitle: $sourceTitle, ')
+          ..write('sourceRetrievedAt: $sourceRetrievedAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $LogEntriesTable extends LogEntries
     with TableInfo<$LogEntriesTable, LogEntry> {
   @override
@@ -2763,6 +3341,76 @@ class $LogEntriesTable extends LogEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _portionWeightGramsPerUnitMeta =
+      const VerificationMeta('portionWeightGramsPerUnit');
+  @override
+  late final GeneratedColumn<double> portionWeightGramsPerUnit =
+      GeneratedColumn<double>(
+        'portion_weight_grams_per_unit',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _portionWeightUnitMeta = const VerificationMeta(
+    'portionWeightUnit',
+  );
+  @override
+  late final GeneratedColumn<String> portionWeightUnit =
+      GeneratedColumn<String>(
+        'portion_weight_unit',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _portionWeightIsEstimateMeta =
+      const VerificationMeta('portionWeightIsEstimate');
+  @override
+  late final GeneratedColumn<bool> portionWeightIsEstimate =
+      GeneratedColumn<bool>(
+        'portion_weight_is_estimate',
+        aliasedName,
+        true,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("portion_weight_is_estimate" IN (0, 1))',
+        ),
+      );
+  static const VerificationMeta _portionWeightSourceUrlMeta =
+      const VerificationMeta('portionWeightSourceUrl');
+  @override
+  late final GeneratedColumn<String> portionWeightSourceUrl =
+      GeneratedColumn<String>(
+        'portion_weight_source_url',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _portionWeightSourceTitleMeta =
+      const VerificationMeta('portionWeightSourceTitle');
+  @override
+  late final GeneratedColumn<String> portionWeightSourceTitle =
+      GeneratedColumn<String>(
+        'portion_weight_source_title',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _portionWeightSourceRetrievedAtMeta =
+      const VerificationMeta('portionWeightSourceRetrievedAt');
+  @override
+  late final GeneratedColumn<DateTime> portionWeightSourceRetrievedAt =
+      GeneratedColumn<DateTime>(
+        'portion_weight_source_retrieved_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2778,6 +3426,12 @@ class $LogEntriesTable extends LogEntries
     recipeId,
     portionQuantity,
     portionUnit,
+    portionWeightGramsPerUnit,
+    portionWeightUnit,
+    portionWeightIsEstimate,
+    portionWeightSourceUrl,
+    portionWeightSourceTitle,
+    portionWeightSourceRetrievedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2888,6 +3542,60 @@ class $LogEntriesTable extends LogEntries
         ),
       );
     }
+    if (data.containsKey('portion_weight_grams_per_unit')) {
+      context.handle(
+        _portionWeightGramsPerUnitMeta,
+        portionWeightGramsPerUnit.isAcceptableOrUnknown(
+          data['portion_weight_grams_per_unit']!,
+          _portionWeightGramsPerUnitMeta,
+        ),
+      );
+    }
+    if (data.containsKey('portion_weight_unit')) {
+      context.handle(
+        _portionWeightUnitMeta,
+        portionWeightUnit.isAcceptableOrUnknown(
+          data['portion_weight_unit']!,
+          _portionWeightUnitMeta,
+        ),
+      );
+    }
+    if (data.containsKey('portion_weight_is_estimate')) {
+      context.handle(
+        _portionWeightIsEstimateMeta,
+        portionWeightIsEstimate.isAcceptableOrUnknown(
+          data['portion_weight_is_estimate']!,
+          _portionWeightIsEstimateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('portion_weight_source_url')) {
+      context.handle(
+        _portionWeightSourceUrlMeta,
+        portionWeightSourceUrl.isAcceptableOrUnknown(
+          data['portion_weight_source_url']!,
+          _portionWeightSourceUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('portion_weight_source_title')) {
+      context.handle(
+        _portionWeightSourceTitleMeta,
+        portionWeightSourceTitle.isAcceptableOrUnknown(
+          data['portion_weight_source_title']!,
+          _portionWeightSourceTitleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('portion_weight_source_retrieved_at')) {
+      context.handle(
+        _portionWeightSourceRetrievedAtMeta,
+        portionWeightSourceRetrievedAt.isAcceptableOrUnknown(
+          data['portion_weight_source_retrieved_at']!,
+          _portionWeightSourceRetrievedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2949,6 +3657,30 @@ class $LogEntriesTable extends LogEntries
         DriftSqlType.string,
         data['${effectivePrefix}portion_unit'],
       ),
+      portionWeightGramsPerUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}portion_weight_grams_per_unit'],
+      ),
+      portionWeightUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}portion_weight_unit'],
+      ),
+      portionWeightIsEstimate: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}portion_weight_is_estimate'],
+      ),
+      portionWeightSourceUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}portion_weight_source_url'],
+      ),
+      portionWeightSourceTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}portion_weight_source_title'],
+      ),
+      portionWeightSourceRetrievedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}portion_weight_source_retrieved_at'],
+      ),
     );
   }
 
@@ -2972,6 +3704,12 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
   final int? recipeId;
   final double? portionQuantity;
   final String? portionUnit;
+  final double? portionWeightGramsPerUnit;
+  final String? portionWeightUnit;
+  final bool? portionWeightIsEstimate;
+  final String? portionWeightSourceUrl;
+  final String? portionWeightSourceTitle;
+  final DateTime? portionWeightSourceRetrievedAt;
   const LogEntry({
     required this.id,
     required this.date,
@@ -2986,6 +3724,12 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
     this.recipeId,
     this.portionQuantity,
     this.portionUnit,
+    this.portionWeightGramsPerUnit,
+    this.portionWeightUnit,
+    this.portionWeightIsEstimate,
+    this.portionWeightSourceUrl,
+    this.portionWeightSourceTitle,
+    this.portionWeightSourceRetrievedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3010,6 +3754,34 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
     }
     if (!nullToAbsent || portionUnit != null) {
       map['portion_unit'] = Variable<String>(portionUnit);
+    }
+    if (!nullToAbsent || portionWeightGramsPerUnit != null) {
+      map['portion_weight_grams_per_unit'] = Variable<double>(
+        portionWeightGramsPerUnit,
+      );
+    }
+    if (!nullToAbsent || portionWeightUnit != null) {
+      map['portion_weight_unit'] = Variable<String>(portionWeightUnit);
+    }
+    if (!nullToAbsent || portionWeightIsEstimate != null) {
+      map['portion_weight_is_estimate'] = Variable<bool>(
+        portionWeightIsEstimate,
+      );
+    }
+    if (!nullToAbsent || portionWeightSourceUrl != null) {
+      map['portion_weight_source_url'] = Variable<String>(
+        portionWeightSourceUrl,
+      );
+    }
+    if (!nullToAbsent || portionWeightSourceTitle != null) {
+      map['portion_weight_source_title'] = Variable<String>(
+        portionWeightSourceTitle,
+      );
+    }
+    if (!nullToAbsent || portionWeightSourceRetrievedAt != null) {
+      map['portion_weight_source_retrieved_at'] = Variable<DateTime>(
+        portionWeightSourceRetrievedAt,
+      );
     }
     return map;
   }
@@ -3037,6 +3809,26 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
       portionUnit: portionUnit == null && nullToAbsent
           ? const Value.absent()
           : Value(portionUnit),
+      portionWeightGramsPerUnit:
+          portionWeightGramsPerUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(portionWeightGramsPerUnit),
+      portionWeightUnit: portionWeightUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(portionWeightUnit),
+      portionWeightIsEstimate: portionWeightIsEstimate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(portionWeightIsEstimate),
+      portionWeightSourceUrl: portionWeightSourceUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(portionWeightSourceUrl),
+      portionWeightSourceTitle: portionWeightSourceTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(portionWeightSourceTitle),
+      portionWeightSourceRetrievedAt:
+          portionWeightSourceRetrievedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(portionWeightSourceRetrievedAt),
     );
   }
 
@@ -3059,6 +3851,24 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
       recipeId: serializer.fromJson<int?>(json['recipeId']),
       portionQuantity: serializer.fromJson<double?>(json['portionQuantity']),
       portionUnit: serializer.fromJson<String?>(json['portionUnit']),
+      portionWeightGramsPerUnit: serializer.fromJson<double?>(
+        json['portionWeightGramsPerUnit'],
+      ),
+      portionWeightUnit: serializer.fromJson<String?>(
+        json['portionWeightUnit'],
+      ),
+      portionWeightIsEstimate: serializer.fromJson<bool?>(
+        json['portionWeightIsEstimate'],
+      ),
+      portionWeightSourceUrl: serializer.fromJson<String?>(
+        json['portionWeightSourceUrl'],
+      ),
+      portionWeightSourceTitle: serializer.fromJson<String?>(
+        json['portionWeightSourceTitle'],
+      ),
+      portionWeightSourceRetrievedAt: serializer.fromJson<DateTime?>(
+        json['portionWeightSourceRetrievedAt'],
+      ),
     );
   }
   @override
@@ -3078,6 +3888,22 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
       'recipeId': serializer.toJson<int?>(recipeId),
       'portionQuantity': serializer.toJson<double?>(portionQuantity),
       'portionUnit': serializer.toJson<String?>(portionUnit),
+      'portionWeightGramsPerUnit': serializer.toJson<double?>(
+        portionWeightGramsPerUnit,
+      ),
+      'portionWeightUnit': serializer.toJson<String?>(portionWeightUnit),
+      'portionWeightIsEstimate': serializer.toJson<bool?>(
+        portionWeightIsEstimate,
+      ),
+      'portionWeightSourceUrl': serializer.toJson<String?>(
+        portionWeightSourceUrl,
+      ),
+      'portionWeightSourceTitle': serializer.toJson<String?>(
+        portionWeightSourceTitle,
+      ),
+      'portionWeightSourceRetrievedAt': serializer.toJson<DateTime?>(
+        portionWeightSourceRetrievedAt,
+      ),
     };
   }
 
@@ -3095,6 +3921,12 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
     Value<int?> recipeId = const Value.absent(),
     Value<double?> portionQuantity = const Value.absent(),
     Value<String?> portionUnit = const Value.absent(),
+    Value<double?> portionWeightGramsPerUnit = const Value.absent(),
+    Value<String?> portionWeightUnit = const Value.absent(),
+    Value<bool?> portionWeightIsEstimate = const Value.absent(),
+    Value<String?> portionWeightSourceUrl = const Value.absent(),
+    Value<String?> portionWeightSourceTitle = const Value.absent(),
+    Value<DateTime?> portionWeightSourceRetrievedAt = const Value.absent(),
   }) => LogEntry(
     id: id ?? this.id,
     date: date ?? this.date,
@@ -3111,6 +3943,24 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
         ? portionQuantity.value
         : this.portionQuantity,
     portionUnit: portionUnit.present ? portionUnit.value : this.portionUnit,
+    portionWeightGramsPerUnit: portionWeightGramsPerUnit.present
+        ? portionWeightGramsPerUnit.value
+        : this.portionWeightGramsPerUnit,
+    portionWeightUnit: portionWeightUnit.present
+        ? portionWeightUnit.value
+        : this.portionWeightUnit,
+    portionWeightIsEstimate: portionWeightIsEstimate.present
+        ? portionWeightIsEstimate.value
+        : this.portionWeightIsEstimate,
+    portionWeightSourceUrl: portionWeightSourceUrl.present
+        ? portionWeightSourceUrl.value
+        : this.portionWeightSourceUrl,
+    portionWeightSourceTitle: portionWeightSourceTitle.present
+        ? portionWeightSourceTitle.value
+        : this.portionWeightSourceTitle,
+    portionWeightSourceRetrievedAt: portionWeightSourceRetrievedAt.present
+        ? portionWeightSourceRetrievedAt.value
+        : this.portionWeightSourceRetrievedAt,
   );
   LogEntry copyWithCompanion(LogEntriesCompanion data) {
     return LogEntry(
@@ -3131,6 +3981,25 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
       portionUnit: data.portionUnit.present
           ? data.portionUnit.value
           : this.portionUnit,
+      portionWeightGramsPerUnit: data.portionWeightGramsPerUnit.present
+          ? data.portionWeightGramsPerUnit.value
+          : this.portionWeightGramsPerUnit,
+      portionWeightUnit: data.portionWeightUnit.present
+          ? data.portionWeightUnit.value
+          : this.portionWeightUnit,
+      portionWeightIsEstimate: data.portionWeightIsEstimate.present
+          ? data.portionWeightIsEstimate.value
+          : this.portionWeightIsEstimate,
+      portionWeightSourceUrl: data.portionWeightSourceUrl.present
+          ? data.portionWeightSourceUrl.value
+          : this.portionWeightSourceUrl,
+      portionWeightSourceTitle: data.portionWeightSourceTitle.present
+          ? data.portionWeightSourceTitle.value
+          : this.portionWeightSourceTitle,
+      portionWeightSourceRetrievedAt:
+          data.portionWeightSourceRetrievedAt.present
+          ? data.portionWeightSourceRetrievedAt.value
+          : this.portionWeightSourceRetrievedAt,
     );
   }
 
@@ -3149,7 +4018,15 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
           ..write('source: $source, ')
           ..write('recipeId: $recipeId, ')
           ..write('portionQuantity: $portionQuantity, ')
-          ..write('portionUnit: $portionUnit')
+          ..write('portionUnit: $portionUnit, ')
+          ..write('portionWeightGramsPerUnit: $portionWeightGramsPerUnit, ')
+          ..write('portionWeightUnit: $portionWeightUnit, ')
+          ..write('portionWeightIsEstimate: $portionWeightIsEstimate, ')
+          ..write('portionWeightSourceUrl: $portionWeightSourceUrl, ')
+          ..write('portionWeightSourceTitle: $portionWeightSourceTitle, ')
+          ..write(
+            'portionWeightSourceRetrievedAt: $portionWeightSourceRetrievedAt',
+          )
           ..write(')'))
         .toString();
   }
@@ -3169,6 +4046,12 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
     recipeId,
     portionQuantity,
     portionUnit,
+    portionWeightGramsPerUnit,
+    portionWeightUnit,
+    portionWeightIsEstimate,
+    portionWeightSourceUrl,
+    portionWeightSourceTitle,
+    portionWeightSourceRetrievedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -3186,7 +4069,14 @@ class LogEntry extends DataClass implements Insertable<LogEntry> {
           other.source == this.source &&
           other.recipeId == this.recipeId &&
           other.portionQuantity == this.portionQuantity &&
-          other.portionUnit == this.portionUnit);
+          other.portionUnit == this.portionUnit &&
+          other.portionWeightGramsPerUnit == this.portionWeightGramsPerUnit &&
+          other.portionWeightUnit == this.portionWeightUnit &&
+          other.portionWeightIsEstimate == this.portionWeightIsEstimate &&
+          other.portionWeightSourceUrl == this.portionWeightSourceUrl &&
+          other.portionWeightSourceTitle == this.portionWeightSourceTitle &&
+          other.portionWeightSourceRetrievedAt ==
+              this.portionWeightSourceRetrievedAt);
 }
 
 class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
@@ -3203,6 +4093,12 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
   final Value<int?> recipeId;
   final Value<double?> portionQuantity;
   final Value<String?> portionUnit;
+  final Value<double?> portionWeightGramsPerUnit;
+  final Value<String?> portionWeightUnit;
+  final Value<bool?> portionWeightIsEstimate;
+  final Value<String?> portionWeightSourceUrl;
+  final Value<String?> portionWeightSourceTitle;
+  final Value<DateTime?> portionWeightSourceRetrievedAt;
   const LogEntriesCompanion({
     this.id = const Value.absent(),
     this.date = const Value.absent(),
@@ -3217,6 +4113,12 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
     this.recipeId = const Value.absent(),
     this.portionQuantity = const Value.absent(),
     this.portionUnit = const Value.absent(),
+    this.portionWeightGramsPerUnit = const Value.absent(),
+    this.portionWeightUnit = const Value.absent(),
+    this.portionWeightIsEstimate = const Value.absent(),
+    this.portionWeightSourceUrl = const Value.absent(),
+    this.portionWeightSourceTitle = const Value.absent(),
+    this.portionWeightSourceRetrievedAt = const Value.absent(),
   });
   LogEntriesCompanion.insert({
     this.id = const Value.absent(),
@@ -3232,6 +4134,12 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
     this.recipeId = const Value.absent(),
     this.portionQuantity = const Value.absent(),
     this.portionUnit = const Value.absent(),
+    this.portionWeightGramsPerUnit = const Value.absent(),
+    this.portionWeightUnit = const Value.absent(),
+    this.portionWeightIsEstimate = const Value.absent(),
+    this.portionWeightSourceUrl = const Value.absent(),
+    this.portionWeightSourceTitle = const Value.absent(),
+    this.portionWeightSourceRetrievedAt = const Value.absent(),
   }) : date = Value(date),
        foodName = Value(foodName),
        grams = Value(grams),
@@ -3254,6 +4162,12 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
     Expression<int>? recipeId,
     Expression<double>? portionQuantity,
     Expression<String>? portionUnit,
+    Expression<double>? portionWeightGramsPerUnit,
+    Expression<String>? portionWeightUnit,
+    Expression<bool>? portionWeightIsEstimate,
+    Expression<String>? portionWeightSourceUrl,
+    Expression<String>? portionWeightSourceTitle,
+    Expression<DateTime>? portionWeightSourceRetrievedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3269,6 +4183,17 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
       if (recipeId != null) 'recipe_id': recipeId,
       if (portionQuantity != null) 'portion_quantity': portionQuantity,
       if (portionUnit != null) 'portion_unit': portionUnit,
+      if (portionWeightGramsPerUnit != null)
+        'portion_weight_grams_per_unit': portionWeightGramsPerUnit,
+      if (portionWeightUnit != null) 'portion_weight_unit': portionWeightUnit,
+      if (portionWeightIsEstimate != null)
+        'portion_weight_is_estimate': portionWeightIsEstimate,
+      if (portionWeightSourceUrl != null)
+        'portion_weight_source_url': portionWeightSourceUrl,
+      if (portionWeightSourceTitle != null)
+        'portion_weight_source_title': portionWeightSourceTitle,
+      if (portionWeightSourceRetrievedAt != null)
+        'portion_weight_source_retrieved_at': portionWeightSourceRetrievedAt,
     });
   }
 
@@ -3286,6 +4211,12 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
     Value<int?>? recipeId,
     Value<double?>? portionQuantity,
     Value<String?>? portionUnit,
+    Value<double?>? portionWeightGramsPerUnit,
+    Value<String?>? portionWeightUnit,
+    Value<bool?>? portionWeightIsEstimate,
+    Value<String?>? portionWeightSourceUrl,
+    Value<String?>? portionWeightSourceTitle,
+    Value<DateTime?>? portionWeightSourceRetrievedAt,
   }) {
     return LogEntriesCompanion(
       id: id ?? this.id,
@@ -3301,6 +4232,17 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
       recipeId: recipeId ?? this.recipeId,
       portionQuantity: portionQuantity ?? this.portionQuantity,
       portionUnit: portionUnit ?? this.portionUnit,
+      portionWeightGramsPerUnit:
+          portionWeightGramsPerUnit ?? this.portionWeightGramsPerUnit,
+      portionWeightUnit: portionWeightUnit ?? this.portionWeightUnit,
+      portionWeightIsEstimate:
+          portionWeightIsEstimate ?? this.portionWeightIsEstimate,
+      portionWeightSourceUrl:
+          portionWeightSourceUrl ?? this.portionWeightSourceUrl,
+      portionWeightSourceTitle:
+          portionWeightSourceTitle ?? this.portionWeightSourceTitle,
+      portionWeightSourceRetrievedAt:
+          portionWeightSourceRetrievedAt ?? this.portionWeightSourceRetrievedAt,
     );
   }
 
@@ -3346,6 +4288,34 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
     if (portionUnit.present) {
       map['portion_unit'] = Variable<String>(portionUnit.value);
     }
+    if (portionWeightGramsPerUnit.present) {
+      map['portion_weight_grams_per_unit'] = Variable<double>(
+        portionWeightGramsPerUnit.value,
+      );
+    }
+    if (portionWeightUnit.present) {
+      map['portion_weight_unit'] = Variable<String>(portionWeightUnit.value);
+    }
+    if (portionWeightIsEstimate.present) {
+      map['portion_weight_is_estimate'] = Variable<bool>(
+        portionWeightIsEstimate.value,
+      );
+    }
+    if (portionWeightSourceUrl.present) {
+      map['portion_weight_source_url'] = Variable<String>(
+        portionWeightSourceUrl.value,
+      );
+    }
+    if (portionWeightSourceTitle.present) {
+      map['portion_weight_source_title'] = Variable<String>(
+        portionWeightSourceTitle.value,
+      );
+    }
+    if (portionWeightSourceRetrievedAt.present) {
+      map['portion_weight_source_retrieved_at'] = Variable<DateTime>(
+        portionWeightSourceRetrievedAt.value,
+      );
+    }
     return map;
   }
 
@@ -3364,7 +4334,15 @@ class LogEntriesCompanion extends UpdateCompanion<LogEntry> {
           ..write('source: $source, ')
           ..write('recipeId: $recipeId, ')
           ..write('portionQuantity: $portionQuantity, ')
-          ..write('portionUnit: $portionUnit')
+          ..write('portionUnit: $portionUnit, ')
+          ..write('portionWeightGramsPerUnit: $portionWeightGramsPerUnit, ')
+          ..write('portionWeightUnit: $portionWeightUnit, ')
+          ..write('portionWeightIsEstimate: $portionWeightIsEstimate, ')
+          ..write('portionWeightSourceUrl: $portionWeightSourceUrl, ')
+          ..write('portionWeightSourceTitle: $portionWeightSourceTitle, ')
+          ..write(
+            'portionWeightSourceRetrievedAt: $portionWeightSourceRetrievedAt',
+          )
           ..write(')'))
         .toString();
   }
@@ -9599,6 +10577,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RecipeNutritionCacheTable recipeNutritionCache =
       $RecipeNutritionCacheTable(this);
   late final $FoodCacheTable foodCache = $FoodCacheTable(this);
+  late final $FoodUnitWeightsTable foodUnitWeights = $FoodUnitWeightsTable(
+    this,
+  );
   late final $LogEntriesTable logEntries = $LogEntriesTable(this);
   late final $DailyTargetsTableTable dailyTargetsTable =
       $DailyTargetsTableTable(this);
@@ -9633,6 +10614,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     recipeSteps,
     recipeNutritionCache,
     foodCache,
+    foodUnitWeights,
     logEntries,
     dailyTargetsTable,
     adaptiveTargets,
@@ -11658,6 +12640,294 @@ typedef $$FoodCacheTableProcessedTableManager =
       FoodCacheData,
       PrefetchHooks Function()
     >;
+typedef $$FoodUnitWeightsTableCreateCompanionBuilder =
+    FoodUnitWeightsCompanion Function({
+      required String foodKey,
+      required String foodName,
+      required String unit,
+      required double gramsPerUnit,
+      required String kind,
+      required String sourceUrl,
+      required String sourceTitle,
+      required DateTime sourceRetrievedAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$FoodUnitWeightsTableUpdateCompanionBuilder =
+    FoodUnitWeightsCompanion Function({
+      Value<String> foodKey,
+      Value<String> foodName,
+      Value<String> unit,
+      Value<double> gramsPerUnit,
+      Value<String> kind,
+      Value<String> sourceUrl,
+      Value<String> sourceTitle,
+      Value<DateTime> sourceRetrievedAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$FoodUnitWeightsTableFilterComposer
+    extends Composer<_$AppDatabase, $FoodUnitWeightsTable> {
+  $$FoodUnitWeightsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get foodKey => $composableBuilder(
+    column: $table.foodKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get foodName => $composableBuilder(
+    column: $table.foodName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get gramsPerUnit => $composableBuilder(
+    column: $table.gramsPerUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceUrl => $composableBuilder(
+    column: $table.sourceUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceTitle => $composableBuilder(
+    column: $table.sourceTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get sourceRetrievedAt => $composableBuilder(
+    column: $table.sourceRetrievedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$FoodUnitWeightsTableOrderingComposer
+    extends Composer<_$AppDatabase, $FoodUnitWeightsTable> {
+  $$FoodUnitWeightsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get foodKey => $composableBuilder(
+    column: $table.foodKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get foodName => $composableBuilder(
+    column: $table.foodName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get gramsPerUnit => $composableBuilder(
+    column: $table.gramsPerUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceUrl => $composableBuilder(
+    column: $table.sourceUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceTitle => $composableBuilder(
+    column: $table.sourceTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get sourceRetrievedAt => $composableBuilder(
+    column: $table.sourceRetrievedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FoodUnitWeightsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FoodUnitWeightsTable> {
+  $$FoodUnitWeightsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get foodKey =>
+      $composableBuilder(column: $table.foodKey, builder: (column) => column);
+
+  GeneratedColumn<String> get foodName =>
+      $composableBuilder(column: $table.foodName, builder: (column) => column);
+
+  GeneratedColumn<String> get unit =>
+      $composableBuilder(column: $table.unit, builder: (column) => column);
+
+  GeneratedColumn<double> get gramsPerUnit => $composableBuilder(
+    column: $table.gramsPerUnit,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceUrl =>
+      $composableBuilder(column: $table.sourceUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceTitle => $composableBuilder(
+    column: $table.sourceTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get sourceRetrievedAt => $composableBuilder(
+    column: $table.sourceRetrievedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$FoodUnitWeightsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FoodUnitWeightsTable,
+          FoodUnitWeightRow,
+          $$FoodUnitWeightsTableFilterComposer,
+          $$FoodUnitWeightsTableOrderingComposer,
+          $$FoodUnitWeightsTableAnnotationComposer,
+          $$FoodUnitWeightsTableCreateCompanionBuilder,
+          $$FoodUnitWeightsTableUpdateCompanionBuilder,
+          (
+            FoodUnitWeightRow,
+            BaseReferences<
+              _$AppDatabase,
+              $FoodUnitWeightsTable,
+              FoodUnitWeightRow
+            >,
+          ),
+          FoodUnitWeightRow,
+          PrefetchHooks Function()
+        > {
+  $$FoodUnitWeightsTableTableManager(
+    _$AppDatabase db,
+    $FoodUnitWeightsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FoodUnitWeightsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FoodUnitWeightsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FoodUnitWeightsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> foodKey = const Value.absent(),
+                Value<String> foodName = const Value.absent(),
+                Value<String> unit = const Value.absent(),
+                Value<double> gramsPerUnit = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> sourceUrl = const Value.absent(),
+                Value<String> sourceTitle = const Value.absent(),
+                Value<DateTime> sourceRetrievedAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FoodUnitWeightsCompanion(
+                foodKey: foodKey,
+                foodName: foodName,
+                unit: unit,
+                gramsPerUnit: gramsPerUnit,
+                kind: kind,
+                sourceUrl: sourceUrl,
+                sourceTitle: sourceTitle,
+                sourceRetrievedAt: sourceRetrievedAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String foodKey,
+                required String foodName,
+                required String unit,
+                required double gramsPerUnit,
+                required String kind,
+                required String sourceUrl,
+                required String sourceTitle,
+                required DateTime sourceRetrievedAt,
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FoodUnitWeightsCompanion.insert(
+                foodKey: foodKey,
+                foodName: foodName,
+                unit: unit,
+                gramsPerUnit: gramsPerUnit,
+                kind: kind,
+                sourceUrl: sourceUrl,
+                sourceTitle: sourceTitle,
+                sourceRetrievedAt: sourceRetrievedAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$FoodUnitWeightsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FoodUnitWeightsTable,
+      FoodUnitWeightRow,
+      $$FoodUnitWeightsTableFilterComposer,
+      $$FoodUnitWeightsTableOrderingComposer,
+      $$FoodUnitWeightsTableAnnotationComposer,
+      $$FoodUnitWeightsTableCreateCompanionBuilder,
+      $$FoodUnitWeightsTableUpdateCompanionBuilder,
+      (
+        FoodUnitWeightRow,
+        BaseReferences<_$AppDatabase, $FoodUnitWeightsTable, FoodUnitWeightRow>,
+      ),
+      FoodUnitWeightRow,
+      PrefetchHooks Function()
+    >;
 typedef $$LogEntriesTableCreateCompanionBuilder =
     LogEntriesCompanion Function({
       Value<int> id,
@@ -11673,6 +12943,12 @@ typedef $$LogEntriesTableCreateCompanionBuilder =
       Value<int?> recipeId,
       Value<double?> portionQuantity,
       Value<String?> portionUnit,
+      Value<double?> portionWeightGramsPerUnit,
+      Value<String?> portionWeightUnit,
+      Value<bool?> portionWeightIsEstimate,
+      Value<String?> portionWeightSourceUrl,
+      Value<String?> portionWeightSourceTitle,
+      Value<DateTime?> portionWeightSourceRetrievedAt,
     });
 typedef $$LogEntriesTableUpdateCompanionBuilder =
     LogEntriesCompanion Function({
@@ -11689,6 +12965,12 @@ typedef $$LogEntriesTableUpdateCompanionBuilder =
       Value<int?> recipeId,
       Value<double?> portionQuantity,
       Value<String?> portionUnit,
+      Value<double?> portionWeightGramsPerUnit,
+      Value<String?> portionWeightUnit,
+      Value<bool?> portionWeightIsEstimate,
+      Value<String?> portionWeightSourceUrl,
+      Value<String?> portionWeightSourceTitle,
+      Value<DateTime?> portionWeightSourceRetrievedAt,
     });
 
 class $$LogEntriesTableFilterComposer
@@ -11764,6 +13046,37 @@ class $$LogEntriesTableFilterComposer
     column: $table.portionUnit,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<double> get portionWeightGramsPerUnit => $composableBuilder(
+    column: $table.portionWeightGramsPerUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get portionWeightUnit => $composableBuilder(
+    column: $table.portionWeightUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get portionWeightIsEstimate => $composableBuilder(
+    column: $table.portionWeightIsEstimate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get portionWeightSourceUrl => $composableBuilder(
+    column: $table.portionWeightSourceUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get portionWeightSourceTitle => $composableBuilder(
+    column: $table.portionWeightSourceTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get portionWeightSourceRetrievedAt =>
+      $composableBuilder(
+        column: $table.portionWeightSourceRetrievedAt,
+        builder: (column) => ColumnFilters(column),
+      );
 }
 
 class $$LogEntriesTableOrderingComposer
@@ -11839,6 +13152,37 @@ class $$LogEntriesTableOrderingComposer
     column: $table.portionUnit,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get portionWeightGramsPerUnit => $composableBuilder(
+    column: $table.portionWeightGramsPerUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get portionWeightUnit => $composableBuilder(
+    column: $table.portionWeightUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get portionWeightIsEstimate => $composableBuilder(
+    column: $table.portionWeightIsEstimate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get portionWeightSourceUrl => $composableBuilder(
+    column: $table.portionWeightSourceUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get portionWeightSourceTitle => $composableBuilder(
+    column: $table.portionWeightSourceTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get portionWeightSourceRetrievedAt =>
+      $composableBuilder(
+        column: $table.portionWeightSourceRetrievedAt,
+        builder: (column) => ColumnOrderings(column),
+      );
 }
 
 class $$LogEntriesTableAnnotationComposer
@@ -11892,6 +13236,37 @@ class $$LogEntriesTableAnnotationComposer
     column: $table.portionUnit,
     builder: (column) => column,
   );
+
+  GeneratedColumn<double> get portionWeightGramsPerUnit => $composableBuilder(
+    column: $table.portionWeightGramsPerUnit,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get portionWeightUnit => $composableBuilder(
+    column: $table.portionWeightUnit,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get portionWeightIsEstimate => $composableBuilder(
+    column: $table.portionWeightIsEstimate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get portionWeightSourceUrl => $composableBuilder(
+    column: $table.portionWeightSourceUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get portionWeightSourceTitle => $composableBuilder(
+    column: $table.portionWeightSourceTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get portionWeightSourceRetrievedAt =>
+      $composableBuilder(
+        column: $table.portionWeightSourceRetrievedAt,
+        builder: (column) => column,
+      );
 }
 
 class $$LogEntriesTableTableManager
@@ -11935,6 +13310,13 @@ class $$LogEntriesTableTableManager
                 Value<int?> recipeId = const Value.absent(),
                 Value<double?> portionQuantity = const Value.absent(),
                 Value<String?> portionUnit = const Value.absent(),
+                Value<double?> portionWeightGramsPerUnit = const Value.absent(),
+                Value<String?> portionWeightUnit = const Value.absent(),
+                Value<bool?> portionWeightIsEstimate = const Value.absent(),
+                Value<String?> portionWeightSourceUrl = const Value.absent(),
+                Value<String?> portionWeightSourceTitle = const Value.absent(),
+                Value<DateTime?> portionWeightSourceRetrievedAt =
+                    const Value.absent(),
               }) => LogEntriesCompanion(
                 id: id,
                 date: date,
@@ -11949,6 +13331,12 @@ class $$LogEntriesTableTableManager
                 recipeId: recipeId,
                 portionQuantity: portionQuantity,
                 portionUnit: portionUnit,
+                portionWeightGramsPerUnit: portionWeightGramsPerUnit,
+                portionWeightUnit: portionWeightUnit,
+                portionWeightIsEstimate: portionWeightIsEstimate,
+                portionWeightSourceUrl: portionWeightSourceUrl,
+                portionWeightSourceTitle: portionWeightSourceTitle,
+                portionWeightSourceRetrievedAt: portionWeightSourceRetrievedAt,
               ),
           createCompanionCallback:
               ({
@@ -11965,6 +13353,13 @@ class $$LogEntriesTableTableManager
                 Value<int?> recipeId = const Value.absent(),
                 Value<double?> portionQuantity = const Value.absent(),
                 Value<String?> portionUnit = const Value.absent(),
+                Value<double?> portionWeightGramsPerUnit = const Value.absent(),
+                Value<String?> portionWeightUnit = const Value.absent(),
+                Value<bool?> portionWeightIsEstimate = const Value.absent(),
+                Value<String?> portionWeightSourceUrl = const Value.absent(),
+                Value<String?> portionWeightSourceTitle = const Value.absent(),
+                Value<DateTime?> portionWeightSourceRetrievedAt =
+                    const Value.absent(),
               }) => LogEntriesCompanion.insert(
                 id: id,
                 date: date,
@@ -11979,6 +13374,12 @@ class $$LogEntriesTableTableManager
                 recipeId: recipeId,
                 portionQuantity: portionQuantity,
                 portionUnit: portionUnit,
+                portionWeightGramsPerUnit: portionWeightGramsPerUnit,
+                portionWeightUnit: portionWeightUnit,
+                portionWeightIsEstimate: portionWeightIsEstimate,
+                portionWeightSourceUrl: portionWeightSourceUrl,
+                portionWeightSourceTitle: portionWeightSourceTitle,
+                portionWeightSourceRetrievedAt: portionWeightSourceRetrievedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -16519,6 +17920,8 @@ class $AppDatabaseManager {
       $$RecipeNutritionCacheTableTableManager(_db, _db.recipeNutritionCache);
   $$FoodCacheTableTableManager get foodCache =>
       $$FoodCacheTableTableManager(_db, _db.foodCache);
+  $$FoodUnitWeightsTableTableManager get foodUnitWeights =>
+      $$FoodUnitWeightsTableTableManager(_db, _db.foodUnitWeights);
   $$LogEntriesTableTableManager get logEntries =>
       $$LogEntriesTableTableManager(_db, _db.logEntries);
   $$DailyTargetsTableTableTableManager get dailyTargetsTable =>

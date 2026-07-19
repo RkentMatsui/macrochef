@@ -58,6 +58,7 @@ class OpenFoodFactsClient {
       );
       final servingSize = product['serving_size'];
       final grams = _servingGrams(servingSize);
+      final countBasis = _countServingBasis(servingSize);
       return FoodMacros(
         name: (product['product_name'] as String?)?.trim().isNotEmpty == true
             ? (product['product_name'] as String).trim()
@@ -66,7 +67,13 @@ class OpenFoodFactsClient {
         source: MacroSource.off,
         isEstimate: false,
         basis: _servingBasis(nutriments, perHundred, grams, servingSize),
-        gramsPerPiece: grams,
+        // A serving's declared grams describe that exact basis, not a generic
+        // piece. Only retain the legacy field for a real parsed count basis.
+        gramsPerPiece:
+            countBasis == null || countBasis.unit == 'serving' || grams == null
+            ? null
+            : grams / countBasis.quantity,
+        basisPhysicalGrams: grams,
       );
     } catch (_) {
       return null;

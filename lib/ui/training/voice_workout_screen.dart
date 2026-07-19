@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,7 +52,8 @@ class VoiceWorkoutScreen extends ConsumerStatefulWidget {
   ConsumerState<VoiceWorkoutScreen> createState() => _VoiceWorkoutScreenState();
 }
 
-class _VoiceWorkoutScreenState extends ConsumerState<VoiceWorkoutScreen> {
+class _VoiceWorkoutScreenState extends ConsumerState<VoiceWorkoutScreen>
+    with WidgetsBindingObserver {
   WorkoutVoiceSession? _session;
   _CaptioningSpeechProvider? _captioningSpeech;
   bool _loading = true;
@@ -64,17 +67,24 @@ class _VoiceWorkoutScreenState extends ConsumerState<VoiceWorkoutScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initSession();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _cmdCtrl.dispose();
     _cmdFocus.dispose();
     _stopLoop();
     _captioningSpeech?.lastSpoken.dispose();
     _session?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _session?.setAppForeground(state == AppLifecycleState.resumed);
   }
 
   Future<void> _initSession() async {
@@ -125,7 +135,7 @@ class _VoiceWorkoutScreenState extends ConsumerState<VoiceWorkoutScreen> {
     // Mirror voice rests to a background notification (sound + vibration) so the
     // alert still fires if the app is backgrounded mid-rest.
     final alerts = ref.read(restAlertServiceProvider);
-    alerts.init();
+    unawaited(alerts.init());
 
     final session = WorkoutVoiceSession(
       sessionId: widget.sessionId,

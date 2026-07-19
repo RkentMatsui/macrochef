@@ -1,3 +1,4 @@
+import '../models/food_unit_weight.dart';
 import '../models/macros.dart';
 import '../providers/llm/llm_provider.dart';
 import 'food_web_grounder.dart';
@@ -6,7 +7,7 @@ import 'food_web_grounder.dart';
 /// capability. It deliberately has no fallback to normal chat: lack of a
 /// supported search tool must allow FoodLookup to continue to its ungrounded
 /// estimate path instead of presenting made-up citations.
-class LlmFoodWebGrounder implements FoodWebGrounder {
+class LlmFoodWebGrounder extends FoodWebGrounder {
   final LLMProvider llm;
   final DateTime Function() clock;
 
@@ -24,6 +25,58 @@ class LlmFoodWebGrounder implements FoodWebGrounder {
     required String requestedUnit,
   }) => _ground(foodName, requestedUnit: requestedUnit);
 
+  @override
+  Future<GroundedUnitWeightResult?> groundUnitWeight(
+    String foodName, {
+    required String requestedUnit,
+  }) async {
+    final name = foodName.trim();
+    final unit = requestedUnit.trim();
+    if (name.isEmpty || unit.isEmpty || !llm.supportsWebGrounding) return null;
+
+    try {
+      final response = await llm.groundedStructured(
+        _unitWeightPrompt(name, unit),
+        _unitWeightSchema,
+      );
+      final citation = _citation(response);
+      if (citation == null) return null;
+
+      final data = response.data;
+      final matchedName = data['matchedName'];
+      final returnedUnit = data['unit'];
+      final grams = _number(data['gramsPerUnit']);
+      final kind = _unitWeightKind(data['evidenceKind']);
+      if (matchedName is! String ||
+          matchedName.trim().isEmpty ||
+          returnedUnit is! String ||
+          returnedUnit.trim().toLowerCase() != unit.toLowerCase() ||
+          grams == null ||
+          kind == null ||
+          !_matchesFood(name, matchedName, kind)) {
+        return null;
+      }
+
+      return GroundedUnitWeightResult.tryCreate(
+        FoodUnitWeight(
+          foodName: matchedName.trim(),
+          unit: returnedUnit.trim(),
+          gramsPerUnit: grams,
+          kind: kind,
+          provenance: FoodProvenance(
+            url: citation.url,
+            title: citation.title,
+            retrievedAt: clock(),
+          ),
+        ),
+      );
+    } catch (_) {
+      // Provider timeouts, malformed tool output, and network failures are
+      // ordinary unavailable outcomes; the caller may use its usual fallback.
+      return null;
+    }
+  }
+
   Future<GroundedFoodResult?> _ground(
     String foodName, {
     String? requestedUnit,
@@ -35,12 +88,8 @@ class LlmFoodWebGrounder implements FoodWebGrounder {
       _prompt(name, requestedUnit: requestedUnit),
       _schema,
     );
-    if (response.citations.isEmpty) return null;
-
-    final citation = response.citations.firstWhere(
-      (item) => item.url.scheme == 'https' || item.url.scheme == 'http',
-      orElse: () => response.citations.first,
-    );
+    final citation = _citation(response);
+    if (citation == null) return null;
     final data = response.data;
     final quantity = _number(data['quantity']);
     final unit = data['unit'];
@@ -98,6 +147,50 @@ class LlmFoodWebGrounder implements FoodWebGrounder {
             .toSet()
       : const {};
 
+  static LlmWebCitation? _citation(LlmGroundedStructuredResponse response) {
+    for (final item in response.citations) {
+      if ((item.url.scheme == 'https' || item.url.scheme == 'http') &&
+          item.url.host.isNotEmpty &&
+          item.title.trim().isNotEmpty) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  static FoodUnitWeightKind? _unitWeightKind(Object? value) => switch (value) {
+    'published' => FoodUnitWeightKind.published,
+    'average' => FoodUnitWeightKind.average,
+    _ => null,
+  };
+
+  /// Published evidence must identify the requested product, not merely a
+  /// similar food. Generic averages are deliberately allowed only when the
+  /// returned generic food still overlaps the query; a different first token
+  /// for a multi-word query is treated as a likely brand mismatch.
+  static bool _matchesFood(
+    String requestedName,
+    String matchedName,
+    FoodUnitWeightKind kind,
+  ) {
+    final requested = _nameTokens(requestedName);
+    final matched = _nameTokens(matchedName);
+    if (requested.isEmpty || matched.isEmpty) return false;
+    if (requested.every(matched.contains) ||
+        matched.every(requested.contains)) {
+      return true;
+    }
+    if (kind == FoodUnitWeightKind.published) return false;
+    return requested.any(matched.contains) &&
+        (requested.length == 1 || matched.contains(requested.first));
+  }
+
+  static List<String> _nameTokens(String value) => value
+      .toLowerCase()
+      .split(RegExp(r'[^a-z0-9]+'))
+      .where((token) => token.isNotEmpty)
+      .toList();
+
   static String _prompt(String foodName, {String? requestedUnit}) =>
       '''
 Find cited public nutrition information for this exact food or product: "$foodName".
@@ -141,6 +234,29 @@ You must use the available web-search tool before calling the emit tool. After s
       'inferredFields': {
         'type': 'array',
         'items': {'type': 'string'},
+      },
+    },
+  };
+
+  static String _unitWeightPrompt(String foodName, String requestedUnit) =>
+      '''
+Find a cited physical gram weight for exactly one "$requestedUnit" of "$foodName".
+Search exact manufacturer, restaurant, or official nutrition-label data first. Then search USDA or other authoritative references and reputable retailers. Only if exact evidence is unavailable, a cited typical generic average is permitted.
+The result must be for the exact requested unit "$requestedUnit". do not substitute another count label (for example slice, item, piece, or serving), and never infer that ml equals g. Return the matched food/product name, grams for one requested unit, and whether that gram value is directly published or an inferred generic average. A different branded product is not exact evidence.
+You must use the available web-search tool before calling the emit tool. After searching, call emit with the final JSON object and no prose. Do not place source URLs in JSON: citations are captured from the web-search tool.
+''';
+
+  static const Map<String, dynamic> _unitWeightSchema = {
+    'type': 'object',
+    'additionalProperties': false,
+    'required': ['matchedName', 'unit', 'gramsPerUnit', 'evidenceKind'],
+    'properties': {
+      'matchedName': {'type': 'string'},
+      'unit': {'type': 'string'},
+      'gramsPerUnit': {'type': 'number'},
+      'evidenceKind': {
+        'type': 'string',
+        'enum': ['published', 'average'],
       },
     },
   };

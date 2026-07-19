@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import '../models/macros.dart';
 import '../models/daily.dart';
+import '../models/food_unit_weight.dart';
 import '../data/database.dart';
 import '../data/repositories/log_repository.dart';
 import '../data/repositories/target_repository.dart';
@@ -31,6 +32,7 @@ class FrequentFood {
   final int? recipeId;
   final double? portionQuantity;
   final String? portionUnit;
+  final FoodUnitWeight? unitWeightEvidence;
 
   /// Number of times this food was logged in the lookback window.
   final int count;
@@ -43,6 +45,7 @@ class FrequentFood {
     required this.recipeId,
     this.portionQuantity,
     this.portionUnit,
+    this.unitWeightEvidence,
     required this.count,
   });
 }
@@ -67,6 +70,7 @@ class DailyLogService {
     int? recipeId,
     double? portionQuantity,
     String? portionUnit,
+    FoodUnitWeight? unitWeightEvidence,
   }) async {
     await logs.add(
       LogEntriesCompanion.insert(
@@ -82,6 +86,16 @@ class DailyLogService {
         recipeId: Value(recipeId),
         portionQuantity: Value(portionQuantity),
         portionUnit: Value(portionUnit),
+        portionWeightGramsPerUnit: Value(unitWeightEvidence?.gramsPerUnit),
+        portionWeightUnit: Value(unitWeightEvidence?.unit),
+        portionWeightIsEstimate: Value(unitWeightEvidence?.isEstimate),
+        portionWeightSourceUrl: Value(
+          unitWeightEvidence?.provenance.url.toString(),
+        ),
+        portionWeightSourceTitle: Value(unitWeightEvidence?.provenance.title),
+        portionWeightSourceRetrievedAt: Value(
+          unitWeightEvidence?.provenance.retrievedAt,
+        ),
       ),
     );
   }
@@ -95,6 +109,7 @@ class DailyLogService {
     required MacroValues macros,
     double? portionQuantity,
     String? portionUnit,
+    FoodUnitWeight? unitWeightEvidence,
   }) async {
     await logs.update(
       id,
@@ -108,6 +123,16 @@ class DailyLogService {
         fibre: Value(macros.fibre),
         portionQuantity: Value(portionQuantity),
         portionUnit: Value(portionUnit),
+        portionWeightGramsPerUnit: Value(unitWeightEvidence?.gramsPerUnit),
+        portionWeightUnit: Value(unitWeightEvidence?.unit),
+        portionWeightIsEstimate: Value(unitWeightEvidence?.isEstimate),
+        portionWeightSourceUrl: Value(
+          unitWeightEvidence?.provenance.url.toString(),
+        ),
+        portionWeightSourceTitle: Value(unitWeightEvidence?.provenance.title),
+        portionWeightSourceRetrievedAt: Value(
+          unitWeightEvidence?.provenance.retrievedAt,
+        ),
       ),
     );
   }
@@ -126,6 +151,7 @@ class DailyLogService {
     required double portionQuantity,
     required String portionUnit,
     double? physicalGrams,
+    FoodUnitWeight? unitWeightEvidence,
   }) async {
     final customFoodService = customFoods;
     if (customFoodService == null) {
@@ -142,6 +168,7 @@ class DailyLogService {
         macros: macros,
         portionQuantity: portionQuantity,
         portionUnit: portionUnit,
+        unitWeightEvidence: unitWeightEvidence,
       );
       if (existing.recipeId != null) return;
 
@@ -286,6 +313,7 @@ class DailyLogService {
         recipeId: e.recipeId,
         portionQuantity: e.portionQuantity,
         portionUnit: e.portionUnit,
+        unitWeightEvidence: _unitWeightEvidence(e),
         count: r.count,
       );
     }).toList();
@@ -315,6 +343,7 @@ class DailyLogService {
         recipeId: e.recipeId,
         portionQuantity: e.portionQuantity,
         portionUnit: e.portionUnit,
+        unitWeightEvidence: _unitWeightEvidence(e),
       );
     }
     return entries.length;
@@ -332,7 +361,41 @@ class DailyLogService {
       recipeId: food.recipeId,
       portionQuantity: food.portionQuantity,
       portionUnit: food.portionUnit,
+      unitWeightEvidence: food.unitWeightEvidence,
     );
+  }
+
+  FoodUnitWeight? _unitWeightEvidence(LogEntry entry) {
+    final grams = entry.portionWeightGramsPerUnit;
+    final isEstimate = entry.portionWeightIsEstimate;
+    final url = entry.portionWeightSourceUrl;
+    final title = entry.portionWeightSourceTitle;
+    final retrievedAt = entry.portionWeightSourceRetrievedAt;
+    final unit = entry.portionWeightUnit;
+    if (grams == null ||
+        isEstimate == null ||
+        url == null ||
+        title == null ||
+        retrievedAt == null ||
+        unit == null) {
+      return null;
+    }
+    final parsedUrl = Uri.tryParse(url);
+    if (parsedUrl == null) return null;
+    final evidence = FoodUnitWeight(
+      foodName: entry.foodName,
+      unit: unit,
+      gramsPerUnit: grams,
+      kind: isEstimate
+          ? FoodUnitWeightKind.average
+          : FoodUnitWeightKind.published,
+      provenance: FoodProvenance(
+        url: parsedUrl,
+        title: title,
+        retrievedAt: retrievedAt,
+      ),
+    );
+    return evidence.isValid ? evidence : null;
   }
 
   DateTime _parse(String s) {

@@ -27,7 +27,10 @@ class MainActivity : FlutterActivity() {
     private val permittedRelativePath = "${Environment.DIRECTORY_DOWNLOADS}/$subDir/"
     private var pendingDeleteResult: MethodChannel.Result? = null
     private var pendingDeleteUri: Uri? = null
-    private var pendingDeleteBatchUris: List<Uri>? = null
+    private var pendingDeleteBatchUris: MutableList<Uri>? = null
+    private var pendingDeleteBatchDeleted: MutableList<String>? = null
+    private var pendingDeleteBatchNotFound: MutableList<String>? = null
+    private var pendingDeleteBatchFailures: MutableMap<String, String>? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -262,33 +265,15 @@ class MainActivity : FlutterActivity() {
             return
         }
 
-        // Android 10 only supplies a recoverable action for one URI. Ask once,
-        // then report the remainder rather than generating one dialog per file.
-        val first = contentUris.first()
-        try {
-            when (deleteUri(first)) {
-                "deleted" -> deleted.add(first.toString())
-                else -> notFound.add(first.toString())
-            }
-            contentUris.drop(1).forEach {
-                failures[it.toString()] = "Batch consent is unavailable on Android 10"
-            }
-            result.success(deleteBatchResult(deleted, notFound, false, failures))
-        } catch (e: RecoverableSecurityException) {
-            pendingDeleteResult = result
-            pendingDeleteBatchUris = contentUris
-            pendingDeleteUri = first
-            try {
-                startIntentSenderForResult(
-                    e.userAction.actionIntent.intentSender, DELETE_BATCH_REQUEST, null, 0, 0, 0,
-                )
-            } catch (startError: Exception) {
-                pendingDeleteResult = null
-                pendingDeleteBatchUris = null
-                pendingDeleteUri = null
-                throw startError
-            }
-        }
+        // Android 10 only supplies a recoverable action for one URI at a time.
+        // Keep this MethodChannel result pending while each approved action is
+        // followed by the next URI, then return one aggregate outcome to Dart.
+        pendingDeleteResult = result
+        pendingDeleteBatchUris = contentUris
+        pendingDeleteBatchDeleted = deleted
+        pendingDeleteBatchNotFound = notFound
+        pendingDeleteBatchFailures = failures
+        continueApi29BatchDelete()
     }
 
     private fun deleteUri(uri: Uri): String =
@@ -345,38 +330,101 @@ class MainActivity : FlutterActivity() {
 
     private fun finishBatchDelete(resultCode: Int) {
         val result = pendingDeleteResult ?: return
-        val uris = pendingDeleteBatchUris ?: emptyList()
-        val firstUri = pendingDeleteUri
-        pendingDeleteResult = null
-        pendingDeleteBatchUris = null
-        pendingDeleteUri = null
 
         if (resultCode != Activity.RESULT_OK) {
-            result.success(deleteBatchResult(declined = true))
+            finishPendingBatchDelete(declined = true)
             return
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val uris = pendingDeleteBatchUris ?: emptyList()
+            clearPendingBatchDelete()
             // createDeleteRequest completes the deletion once approved.
             result.success(deleteBatchResult(deleted = uris.map { it.toString() }))
             return
         }
+
         // On Android 10 the recoverable grant applies to only the selected URI.
-        val deleted = mutableListOf<String>()
-        val notFound = mutableListOf<String>()
-        val failures = mutableMapOf<String, String>()
-        try {
-            if (firstUri == null) throw IllegalStateException("Pending delete URI was lost")
-            when (deleteUri(firstUri)) {
-                "deleted" -> deleted.add(firstUri.toString())
-                else -> notFound.add(firstUri.toString())
-            }
-            uris.drop(1).forEach {
-                failures[it.toString()] = "Batch consent is unavailable on Android 10"
-            }
-            result.success(deleteBatchResult(deleted, notFound, false, failures))
-        } catch (e: Exception) {
-            result.error("downloads_backup", e.message, null)
+        // Delete it, then request consent for the next protected URI before
+        // completing the original MethodChannel call.
+        val uri = pendingDeleteUri
+        val uris = pendingDeleteBatchUris
+        val deleted = pendingDeleteBatchDeleted
+        val notFound = pendingDeleteBatchNotFound
+        val failures = pendingDeleteBatchFailures
+        pendingDeleteUri = null
+        if (uri == null || uris == null || deleted == null || notFound == null || failures == null) {
+            clearPendingBatchDelete()
+            result.error("downloads_backup", "Pending batch delete state was lost", null)
+            return
         }
+        try {
+            when (deleteUri(uri)) {
+                "deleted" -> deleted.add(uri.toString())
+                else -> notFound.add(uri.toString())
+            }
+            uris.remove(uri)
+        } catch (e: Exception) {
+            failures[uri.toString()] = e.message ?: "Delete failed"
+            uris.remove(uri)
+        }
+        continueApi29BatchDelete()
+    }
+
+    private fun continueApi29BatchDelete() {
+        val result = pendingDeleteResult ?: return
+        val uris = pendingDeleteBatchUris
+        val deleted = pendingDeleteBatchDeleted
+        val notFound = pendingDeleteBatchNotFound
+        val failures = pendingDeleteBatchFailures
+        if (uris == null || deleted == null || notFound == null || failures == null) {
+            clearPendingBatchDelete()
+            result.error("downloads_backup", "Pending batch delete state was lost", null)
+            return
+        }
+
+        while (uris.isNotEmpty()) {
+            val uri = uris.first()
+            try {
+                when (deleteUri(uri)) {
+                    "deleted" -> deleted.add(uri.toString())
+                    else -> notFound.add(uri.toString())
+                }
+                uris.removeAt(0)
+            } catch (e: RecoverableSecurityException) {
+                pendingDeleteUri = uri
+                try {
+                    startIntentSenderForResult(
+                        e.userAction.actionIntent.intentSender, DELETE_BATCH_REQUEST, null, 0, 0, 0,
+                    )
+                } catch (startError: Exception) {
+                    clearPendingBatchDelete()
+                    result.error("downloads_backup", startError.message, null)
+                }
+                return
+            } catch (e: Exception) {
+                failures[uri.toString()] = e.message ?: "Delete failed"
+                uris.removeAt(0)
+            }
+        }
+        finishPendingBatchDelete()
+    }
+
+    private fun finishPendingBatchDelete(declined: Boolean = false) {
+        val result = pendingDeleteResult ?: return
+        val deleted = pendingDeleteBatchDeleted ?: emptyList()
+        val notFound = pendingDeleteBatchNotFound ?: emptyList()
+        val failures = pendingDeleteBatchFailures ?: emptyMap()
+        clearPendingBatchDelete()
+        result.success(deleteBatchResult(deleted, notFound, declined, failures))
+    }
+
+    private fun clearPendingBatchDelete() {
+        pendingDeleteResult = null
+        pendingDeleteUri = null
+        pendingDeleteBatchUris = null
+        pendingDeleteBatchDeleted = null
+        pendingDeleteBatchNotFound = null
+        pendingDeleteBatchFailures = null
     }
 
     private fun deleteBatchResult(

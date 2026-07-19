@@ -81,6 +81,34 @@ class LogEntries extends Table {
   IntColumn get recipeId => integer().nullable()();
   RealColumn get portionQuantity => real().nullable()();
   TextColumn get portionUnit => text().nullable()();
+  RealColumn get portionWeightGramsPerUnit => real().nullable()();
+  // The exact unit represented by portionWeightGramsPerUnit. It can differ
+  // from portionUnit when a mass request was recovered from a serving basis.
+  TextColumn get portionWeightUnit => text().nullable()();
+  BoolColumn get portionWeightIsEstimate => boolean().nullable()();
+  TextColumn get portionWeightSourceUrl => text().nullable()();
+  TextColumn get portionWeightSourceTitle => text().nullable()();
+  DateTimeColumn get portionWeightSourceRetrievedAt => dateTime().nullable()();
+}
+
+/// Cited physical-weight evidence for one exact non-mass unit of a food.
+/// Keys are normalized so casing and surrounding whitespace never duplicate a
+/// cache entry, while distinct labels such as `piece` and `serving` remain
+/// distinct evidence.
+@DataClassName('FoodUnitWeightRow')
+class FoodUnitWeights extends Table {
+  TextColumn get foodKey => text()();
+  TextColumn get foodName => text()();
+  TextColumn get unit => text()();
+  RealColumn get gramsPerUnit => real()();
+  TextColumn get kind => text()(); // published|average
+  TextColumn get sourceUrl => text()();
+  TextColumn get sourceTitle => text()();
+  DateTimeColumn get sourceRetrievedAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {foodKey, unit};
 }
 
 class DailyTargetsTable extends Table {
@@ -302,6 +330,7 @@ class RecipeNutritionCache extends Table {
     RecipeSteps,
     RecipeNutritionCache,
     FoodCache,
+    FoodUnitWeights,
     LogEntries,
     DailyTargetsTable,
     AdaptiveTargets,
@@ -323,7 +352,7 @@ class AppDatabase extends _$AppDatabase {
     : super(e ?? driftDatabase(name: 'macrochef'));
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -412,6 +441,20 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 16) {
         await m.addColumn(foodCache, foodCache.basisPhysicalGrams);
+      }
+      if (from < 17) {
+        await m.createTable(foodUnitWeights);
+        await m.addColumn(logEntries, logEntries.portionWeightGramsPerUnit);
+        await m.addColumn(logEntries, logEntries.portionWeightIsEstimate);
+        await m.addColumn(logEntries, logEntries.portionWeightSourceUrl);
+        await m.addColumn(logEntries, logEntries.portionWeightSourceTitle);
+        await m.addColumn(
+          logEntries,
+          logEntries.portionWeightSourceRetrievedAt,
+        );
+      }
+      if (from < 18) {
+        await m.addColumn(logEntries, logEntries.portionWeightUnit);
       }
     },
   );

@@ -144,9 +144,13 @@ class FoodCacheRepository {
   /// Used by "Refresh food data" so stale/bad values re-resolve via the current
   /// lookup order. Returns the number of rows removed.
   Future<int> clearNonOverrides() {
-    return (db.delete(
-      db.foodCache,
-    )..where((t) => t.userOverride.equals(false))).go();
+    return db.transaction(() async {
+      final removed = await (db.delete(
+        db.foodCache,
+      )..where((t) => t.userOverride.equals(false))).go();
+      await db.delete(db.foodUnitWeights).go();
+      return removed;
+    });
   }
 
   /// Deletes all cached rows for the given name (case-insensitive).

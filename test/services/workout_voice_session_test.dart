@@ -108,6 +108,81 @@ void main() {
         llm: FakeLLMProvider(),
       );
 
+  test('rest command invokes one background scheduling callback', () async {
+    final (sessionId, dayId, _, _) = await seedDay();
+    final scheduled = <Duration>[];
+    final session = WorkoutVoiceSession(
+      sessionId: sessionId,
+      dayId: dayId,
+      training: training,
+      repo: repo,
+      speech: speech,
+      parser: parser,
+      llm: FakeLLMProvider(),
+      onRestScheduled: scheduled.add,
+    );
+    await session.init();
+
+    await session.handleUtterance('rest 30 seconds');
+    session.setAppForeground(false);
+
+    expect(scheduled, hasLength(1));
+    expect(scheduled.single.inSeconds, inInclusiveRange(29, 30));
+  });
+
+  test('foreground voice rest completes with speech and no OS alert', () async {
+    final (sessionId, dayId, _, _) = await seedDay();
+    final scheduled = <Duration>[];
+    final cancelled = <Object?>[];
+    final session = WorkoutVoiceSession(
+      sessionId: sessionId,
+      dayId: dayId,
+      training: training,
+      repo: repo,
+      speech: speech,
+      parser: parser,
+      llm: FakeLLMProvider(),
+      onRestScheduled: scheduled.add,
+      onRestCancelled: () => cancelled.add(null),
+    );
+    await session.init();
+
+    await session.handleUtterance('rest 30 seconds');
+    await session.announceRestOver();
+
+    expect(scheduled, isEmpty);
+    expect(cancelled, isEmpty);
+    expect(speech.spoken.where((text) => text.contains("Rest's over")),
+        hasLength(1));
+  });
+
+  test('background voice rest leaves OS alert as the sole completion', () async {
+    final (sessionId, dayId, _, _) = await seedDay();
+    final scheduled = <Duration>[];
+    final cancelled = <Object?>[];
+    final session = WorkoutVoiceSession(
+      sessionId: sessionId,
+      dayId: dayId,
+      training: training,
+      repo: repo,
+      speech: speech,
+      parser: parser,
+      llm: FakeLLMProvider(),
+      onRestScheduled: scheduled.add,
+      onRestCancelled: () => cancelled.add(null),
+    );
+    await session.init();
+
+    await session.handleUtterance('rest 30 seconds');
+    session.setAppForeground(false);
+    await session.announceRestOver();
+
+    expect(scheduled, hasLength(1));
+    expect(cancelled, isEmpty);
+    expect(speech.spoken.where((text) => text.contains("Rest's over")),
+        isEmpty);
+  });
+
   test('init loads the prescribed script and begin announces the first',
       () async {
     final (sessionId, dayId, _, _) = await seedDay();

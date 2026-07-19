@@ -5,6 +5,7 @@ import 'package:macrochef/data/repositories/log_repository.dart';
 import 'package:macrochef/data/repositories/food_cache_repository.dart';
 import 'package:macrochef/data/repositories/target_repository.dart';
 import 'package:macrochef/models/daily.dart';
+import 'package:macrochef/models/food_unit_weight.dart';
 import 'package:macrochef/models/macros.dart';
 import 'package:macrochef/services/daily_log_service.dart';
 import 'package:macrochef/services/custom_food_service.dart';
@@ -56,13 +57,27 @@ void main() {
     expect(totals.target, isNull); // no target set
   });
 
-  test('copyDay re-logs every entry from one day to another', () async {
+  test('copyDay re-logs every entry with exact unit-weight evidence', () async {
+    final evidence = FoodUnitWeight(
+      foodName: 'oats',
+      unit: 'cup',
+      gramsPerUnit: 80,
+      kind: FoodUnitWeightKind.published,
+      provenance: FoodProvenance(
+        url: Uri.parse('https://example.com/oats'),
+        title: 'Oat label',
+        retrievedAt: DateTime.utc(2026, 7, 18),
+      ),
+    );
     await service.log(
       '2026-06-13',
       name: 'oats',
       grams: 80,
       macros: const MacroValues(kcal: 300, protein: 10, carb: 50, fat: 6),
       source: MacroSource.usda,
+      portionQuantity: 1,
+      portionUnit: 'cup',
+      unitWeightEvidence: evidence,
     );
     await service.log(
       '2026-06-13',
@@ -79,6 +94,39 @@ void main() {
     final dst = await service.totals('2026-06-14');
     expect(dst.consumed.kcal, closeTo(src.consumed.kcal, 0.01));
     expect(dst.consumed.protein, closeTo(src.consumed.protein, 0.01));
+    final copied = (await service.logs.forDate('2026-06-14')).first;
+    expect(copied.portionWeightGramsPerUnit, 80);
+    expect(copied.portionWeightIsEstimate, isFalse);
+    expect(copied.portionWeightSourceUrl, 'https://example.com/oats');
+  });
+
+  test('copyDay preserves serving evidence for a gram-requested portion', () async {
+    final evidence = FoodUnitWeight(
+      foodName: 'protein powder',
+      unit: 'serving',
+      gramsPerUnit: 30,
+      kind: FoodUnitWeightKind.published,
+      provenance: FoodProvenance(
+        url: Uri.parse('https://example.com/protein'),
+        title: 'Protein label',
+        retrievedAt: DateTime.utc(2026, 7, 18),
+      ),
+    );
+    await service.log(
+      '2026-06-13',
+      name: 'protein powder',
+      grams: 30,
+      macros: const MacroValues(kcal: 120, protein: 24, carb: 3, fat: 1),
+      source: MacroSource.usda,
+      portionQuantity: 30,
+      portionUnit: 'g',
+      unitWeightEvidence: evidence,
+    );
+
+    await service.copyDay('2026-06-13', '2026-06-14');
+
+    final copied = (await service.logs.forDate('2026-06-14')).single;
+    expect(copied.portionWeightUnit, 'serving');
   });
 
   test('copyDay returns 0 when the source day is empty', () async {
@@ -104,7 +152,45 @@ void main() {
     expect(entry.protein, 8);
     expect(entry.carb, 12);
     expect(entry.fat, 4);
+    expect(entry.portionWeightGramsPerUnit, isNull);
+    expect(entry.portionWeightIsEstimate, isNull);
   });
+
+  test(
+    'logs the exact unit-weight evidence used for a converted portion',
+    () async {
+      final evidence = FoodUnitWeight(
+        foodName: 'Bread',
+        unit: 'slice',
+        gramsPerUnit: 32,
+        kind: FoodUnitWeightKind.average,
+        provenance: FoodProvenance(
+          url: Uri.parse('https://example.com/bread'),
+          title: 'Generic bread weight',
+          retrievedAt: DateTime.utc(2026, 7, 18),
+        ),
+      );
+      await service.log(
+        '2026-07-18',
+        name: 'Bread',
+        grams: 64,
+        macros: const MacroValues(kcal: 160, protein: 8, carb: 30, fat: 2),
+        source: MacroSource.usda,
+        unitWeightEvidence: evidence,
+      );
+
+      final entry = await db.select(db.logEntries).getSingle();
+      expect(entry.portionWeightGramsPerUnit, 32);
+      expect(entry.portionWeightIsEstimate, isTrue);
+      expect(entry.portionWeightSourceUrl, 'https://example.com/bread');
+      expect(entry.portionWeightSourceTitle, 'Generic bread weight');
+      expect(entry.portionWeightUnit, 'slice');
+      expect(
+        entry.portionWeightSourceRetrievedAt,
+        DateTime.utc(2026, 7, 18).toLocal(),
+      );
+    },
+  );
 
   test('setTarget persists and is returned in totals', () async {
     const date = '2026-06-14';
@@ -264,6 +350,48 @@ void main() {
     expect(food.perHundred.kcal, 0);
   });
 
+  test('editing clears stale unit-weight evidence', () async {
+    final evidence = FoodUnitWeight(
+      foodName: 'Bread',
+      unit: 'slice',
+      gramsPerUnit: 32,
+      kind: FoodUnitWeightKind.published,
+      provenance: FoodProvenance(
+        url: Uri.parse('https://example.com/bread'),
+        title: 'Bread label',
+        retrievedAt: DateTime.utc(2026, 7, 18),
+      ),
+    );
+    await service.log(
+      '2026-06-16',
+      name: 'Bread',
+      grams: 64,
+      macros: const MacroValues(kcal: 160, protein: 8, carb: 30, fat: 2),
+      source: MacroSource.usda,
+      portionQuantity: 2,
+      portionUnit: 'slice',
+      unitWeightEvidence: evidence,
+    );
+    final entry = await db.select(db.logEntries).getSingle();
+
+    await service.updateAndRemember(
+      entry.id,
+      name: 'Bread',
+      grams: 100,
+      macros: const MacroValues(kcal: 250, protein: 10, carb: 45, fat: 3),
+      portionQuantity: 100,
+      portionUnit: 'g',
+      physicalGrams: 100,
+    );
+
+    final updated = await db.select(db.logEntries).getSingle();
+    expect(updated.portionWeightGramsPerUnit, isNull);
+    expect(updated.portionWeightIsEstimate, isNull);
+    expect(updated.portionWeightSourceUrl, isNull);
+    expect(updated.portionWeightSourceTitle, isNull);
+    expect(updated.portionWeightSourceRetrievedAt, isNull);
+  });
+
   test('editing a recipe entry does not create a custom food', () async {
     await service.log(
       '2026-06-16',
@@ -370,28 +498,50 @@ void main() {
       expect(freq.where((f) => f.name == 'old food'), isEmpty);
     });
 
-    test('relog re-inserts the same portion to a new date', () async {
-      await service.log(
-        '2026-06-10',
-        name: 'chicken breast',
-        grams: 200,
-        macros: const MacroValues(
-          kcal: 330,
-          protein: 62,
-          carb: 0,
-          fat: 7.2,
-          fibre: 0,
-        ),
-        source: MacroSource.off,
-      );
+    test(
+      'relog re-inserts the same portion and unit-weight evidence',
+      () async {
+        final evidence = FoodUnitWeight(
+          foodName: 'chicken breast',
+          unit: 'serving',
+          gramsPerUnit: 200,
+          kind: FoodUnitWeightKind.average,
+          provenance: FoodProvenance(
+            url: Uri.parse('https://example.com/chicken'),
+            title: 'Chicken average',
+            retrievedAt: DateTime.utc(2026, 7, 18),
+          ),
+        );
+        await service.log(
+          '2026-06-10',
+          name: 'chicken breast',
+          grams: 200,
+          macros: const MacroValues(
+            kcal: 330,
+            protein: 62,
+            carb: 0,
+            fat: 7.2,
+            fibre: 0,
+          ),
+          source: MacroSource.off,
+          portionQuantity: 200,
+          portionUnit: 'g',
+          unitWeightEvidence: evidence,
+        );
 
-      final freq = await service.frequentFoods('2026-06-15');
-      await service.relog('2026-06-15', freq.first);
+        final freq = await service.frequentFoods('2026-06-15');
+        await service.relog('2026-06-15', freq.first);
 
-      final totals = await service.totals('2026-06-15');
-      expect(totals.consumed.kcal, closeTo(330, 0.01));
-      expect(totals.consumed.protein, closeTo(62, 0.01));
-    });
+        final totals = await service.totals('2026-06-15');
+        expect(totals.consumed.kcal, closeTo(330, 0.01));
+        expect(totals.consumed.protein, closeTo(62, 0.01));
+        final relogged = (await service.logs.forDate('2026-06-15')).single;
+        expect(relogged.portionWeightGramsPerUnit, 200);
+        expect(relogged.portionWeightUnit, 'serving');
+        expect(relogged.portionWeightIsEstimate, isTrue);
+        expect(relogged.portionWeightSourceTitle, 'Chicken average');
+      },
+    );
 
     test('limit caps the number of foods returned', () async {
       for (var i = 0; i < 20; i++) {

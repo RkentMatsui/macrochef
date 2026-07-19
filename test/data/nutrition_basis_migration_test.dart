@@ -9,7 +9,7 @@ void main() {
   tearDown(() => db.close());
 
   test('v15 schema retains basis and logged portion columns', () async {
-    expect(db.schemaVersion, 16);
+    expect(db.schemaVersion, 18);
     await db
         .into(db.foodCache)
         .insert(

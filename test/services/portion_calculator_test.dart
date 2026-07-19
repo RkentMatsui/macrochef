@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:macrochef/models/food_unit_weight.dart';
 import 'package:macrochef/models/macros.dart';
 import 'package:macrochef/services/portion_calculator.dart';
 
@@ -14,7 +15,268 @@ const food = FoodMacros(
   isEstimate: false,
   basis: basis,
 );
+
+FoodUnitWeight unitWeight(String unit, double gramsPerUnit) => FoodUnitWeight(
+  foodName: 'test food',
+  unit: unit,
+  gramsPerUnit: gramsPerUnit,
+  kind: FoodUnitWeightKind.published,
+  provenance: FoodProvenance(
+    url: Uri.parse('https://example.com/nutrition'),
+    title: 'Nutrition label',
+    retrievedAt: DateTime.utc(2026),
+  ),
+);
+
 void main() {
+  test('unknown basis does not block usable per-hundred mass fallback', () {
+    const malformedBasisFood = FoodMacros(
+      name: 'meal',
+      perHundred: PerHundred(kcal: 200, protein: 10, carb: 20, fat: 5),
+      source: MacroSource.manual,
+      isEstimate: false,
+      basis: NutritionBasis(
+        quantity: 1,
+        unit: 'package',
+        macros: MacroValues(kcal: 400, protein: 20, carb: 40, fat: 10),
+      ),
+    );
+
+    final result =
+        PortionCalculator.calculate(
+              food: malformedBasisFood,
+              quantity: 60,
+              unit: 'g',
+            )
+            as ResolvedPortion;
+
+    expect(result.macros.kcal, 120);
+    expect(result.physicalGrams, 60);
+  });
+
+  test('unknown basis does not block exact requested-unit evidence', () {
+    const malformedBasisFood = FoodMacros(
+      name: 'soup',
+      perHundred: PerHundred(kcal: 80, protein: 4, carb: 10, fat: 2),
+      source: MacroSource.manual,
+      isEstimate: false,
+      basis: NutritionBasis(
+        quantity: 1,
+        unit: 'package',
+        macros: MacroValues(kcal: 400, protein: 20, carb: 40, fat: 10),
+      ),
+    );
+
+    final result =
+        PortionCalculator.calculate(
+              food: malformedBasisFood,
+              quantity: 1,
+              unit: 'cup',
+              unitWeight: unitWeight('cup', 150),
+            )
+            as ResolvedPortion;
+
+    expect(result.macros.kcal, 120);
+    expect(result.physicalGrams, 150);
+  });
+
+  test(
+    'mass request uses usable per-hundred nutrition before serving basis',
+    () {
+      const servingFood = FoodMacros(
+        name: 'meal',
+        perHundred: PerHundred(kcal: 200, protein: 10, carb: 20, fat: 5),
+        source: MacroSource.manual,
+        isEstimate: false,
+        basis: NutritionBasis(
+          quantity: 1,
+          unit: 'serving',
+          macros: MacroValues(kcal: 400, protein: 20, carb: 40, fat: 10),
+        ),
+      );
+
+      final result =
+          PortionCalculator.calculate(
+                food: servingFood,
+                quantity: 60,
+                unit: 'g',
+              )
+              as ResolvedPortion;
+
+      expect(result.macros.kcal, 120);
+      expect(result.physicalGrams, 60);
+    },
+  );
+
+  test('mass request scales serving basis through authored physical grams', () {
+    const servingFood = FoodMacros(
+      name: 'meal',
+      perHundred: PerHundred.zero,
+      source: MacroSource.manual,
+      isEstimate: false,
+      basis: NutritionBasis(
+        quantity: 1,
+        unit: 'serving',
+        macros: MacroValues(kcal: 280, protein: 14, carb: 28, fat: 7),
+      ),
+      basisPhysicalGrams: 140,
+    );
+
+    final result =
+        PortionCalculator.calculate(food: servingFood, quantity: 60, unit: 'g')
+            as ResolvedPortion;
+
+    expect(result.macros.kcal, 120);
+    expect(result.physicalGrams, 60);
+  });
+
+  test('mass request uses recovered total weight for multiple basis units', () {
+    const servingFood = FoodMacros(
+      name: 'meal',
+      perHundred: PerHundred.zero,
+      source: MacroSource.manual,
+      isEstimate: false,
+      basis: NutritionBasis(
+        quantity: 2,
+        unit: 'serving',
+        macros: MacroValues(kcal: 560, protein: 28, carb: 56, fat: 14),
+      ),
+    );
+
+    final result =
+        PortionCalculator.calculate(
+              food: servingFood,
+              quantity: 60,
+              unit: 'g',
+              unitWeight: unitWeight('serving', 140),
+            )
+            as ResolvedPortion;
+
+    expect(result.macros.kcal, 120);
+    expect(result.physicalGrams, 60);
+    expect(result.acceptedUnitWeight, isNotNull);
+  });
+
+  test(
+    'piece evidence bridges count quantity to usable per-hundred nutrition',
+    () {
+      const tortilla = FoodMacros(
+        name: 'tortilla',
+        perHundred: PerHundred(kcal: 200, protein: 5, carb: 30, fat: 5),
+        source: MacroSource.manual,
+        isEstimate: false,
+      );
+
+      final result =
+          PortionCalculator.calculate(
+                food: tortilla,
+                quantity: 2,
+                unit: 'piece',
+                unitWeight: unitWeight('piece', 85),
+              )
+              as ResolvedPortion;
+
+      expect(result.physicalGrams, 170);
+      expect(result.macros.kcal, 340);
+    },
+  );
+
+  test(
+    'cup evidence bridges volume quantity to usable per-hundred nutrition',
+    () {
+      const soup = FoodMacros(
+        name: 'soup',
+        perHundred: PerHundred(kcal: 80, protein: 4, carb: 10, fat: 2),
+        source: MacroSource.manual,
+        isEstimate: false,
+      );
+
+      final result =
+          PortionCalculator.calculate(
+                food: soup,
+                quantity: 1,
+                unit: 'cup',
+                unitWeight: unitWeight('cup', 150),
+              )
+              as ResolvedPortion;
+
+      expect(result.physicalGrams, 150);
+      expect(result.macros.kcal, 120);
+    },
+  );
+
+  test('piece rejects evidence labelled for another count unit', () {
+    const snack = FoodMacros(
+      name: 'snack',
+      perHundred: PerHundred.zero,
+      source: MacroSource.manual,
+      isEstimate: false,
+    );
+
+    for (final label in ['serving', 'slice', 'item']) {
+      final result =
+          PortionCalculator.calculate(
+                food: snack,
+                quantity: 1,
+                unit: 'piece',
+                unitWeight: unitWeight(label, 50),
+              )
+              as UnresolvedPortion;
+      expect(result.reason, PortionUnresolvedReason.missingPhysicalWeight);
+    }
+  });
+
+  test(
+    'gramless serving basis with zero per-hundred nutrition is unresolved',
+    () {
+      const servingFood = FoodMacros(
+        name: 'meal',
+        perHundred: PerHundred.zero,
+        source: MacroSource.manual,
+        isEstimate: false,
+        basis: NutritionBasis(
+          quantity: 1,
+          unit: 'serving',
+          macros: MacroValues(kcal: 280, protein: 14, carb: 28, fat: 7),
+        ),
+      );
+
+      final result =
+          PortionCalculator.calculate(
+                food: servingFood,
+                quantity: 60,
+                unit: 'g',
+              )
+              as UnresolvedPortion;
+
+      expect(result.reason, PortionUnresolvedReason.missingPhysicalWeight);
+      expect(result.basisUnit, 'serving');
+    },
+  );
+
+  test('invalid evidence is ignored like no evidence', () {
+    const snack = FoodMacros(
+      name: 'snack',
+      perHundred: PerHundred.zero,
+      source: MacroSource.manual,
+      isEstimate: false,
+    );
+    final noEvidence =
+        PortionCalculator.calculate(food: snack, quantity: 1, unit: 'piece')
+            as UnresolvedPortion;
+    final invalidEvidence =
+        PortionCalculator.calculate(
+              food: snack,
+              quantity: 1,
+              unit: 'piece',
+              unitWeight: unitWeight('piece', 0),
+            )
+            as UnresolvedPortion;
+
+    expect(invalidEvidence.reason, noEvidence.reason);
+    expect(invalidEvidence.basisUnit, noEvidence.basisUnit);
+  });
+
   test('scales explicit volume basis and has no physical grams', () {
     final half =
         PortionCalculator.calculate(food: food, quantity: 125, unit: 'ml')

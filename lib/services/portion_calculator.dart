@@ -1,3 +1,4 @@
+import '../models/food_unit_weight.dart';
 import '../models/macros.dart';
 import 'food_units.dart';
 import 'macro_calculator.dart';
@@ -18,11 +19,13 @@ final class ResolvedPortion extends PortionCalculation {
   final String unit;
   final MacroValues macros;
   final double? physicalGrams;
+  final FoodUnitWeight? acceptedUnitWeight;
   const ResolvedPortion({
     required this.quantity,
     required this.unit,
     required this.macros,
     required this.physicalGrams,
+    this.acceptedUnitWeight,
   });
 }
 
@@ -38,6 +41,7 @@ class PortionCalculator {
     required FoodMacros food,
     required double quantity,
     required String unit,
+    FoodUnitWeight? unitWeight,
   }) {
     if (!quantity.isFinite || quantity <= 0) {
       return const UnresolvedPortion(PortionUnresolvedReason.invalidQuantity);
@@ -46,50 +50,131 @@ class PortionCalculator {
     if (requested == null) {
       return const UnresolvedPortion(PortionUnresolvedReason.unsupportedUnit);
     }
-    if (food.basis != null) {
-      final basisUnit = foodUnitByLabel(food.basis!.unit);
+    final basis = food.basis;
+    final acceptedWeight = unitWeight?.isValid == true ? unitWeight : null;
+    if (basis != null) {
+      final basisUnit = foodUnitByLabel(basis.unit);
       if (basisUnit == null) {
+        if (requested.family == FoodUnitFamily.mass &&
+            MacroCalculator.hasUsablePerHundred(food.perHundred)) {
+          final grams = quantity * requested.canonicalFactor;
+          return _fromPerHundred(
+            food: food,
+            quantity: quantity,
+            unit: requested.label,
+            grams: grams,
+          );
+        }
+        if (_matchesRequested(acceptedWeight, requested) &&
+            MacroCalculator.hasUsablePerHundred(food.perHundred)) {
+          final grams = quantity * acceptedWeight!.gramsPerUnit;
+          return _fromPerHundred(
+            food: food,
+            quantity: quantity,
+            unit: requested.label,
+            grams: grams,
+            acceptedUnitWeight: acceptedWeight,
+          );
+        }
         return UnresolvedPortion(
           PortionUnresolvedReason.unsupportedUnit,
-          basisUnit: food.basis!.unit,
+          basisUnit: basis.unit,
         );
       }
       final converted = convertFoodQuantity(quantity, requested, basisUnit);
-      if (converted == null) {
+      if (converted != null && _positiveFinite(basis.quantity)) {
+        final factor = converted / basis.quantity;
+        return ResolvedPortion(
+          quantity: quantity,
+          unit: requested.label,
+          macros: basis.macros.scaled(factor),
+          physicalGrams: _positiveFinite(food.basisPhysicalGrams)
+              ? food.basisPhysicalGrams! * factor
+              : null,
+        );
+      }
+
+      if (requested.family == FoodUnitFamily.mass) {
+        final grams = quantity * requested.canonicalFactor;
+        if (_positiveFinite(food.basisPhysicalGrams)) {
+          return _fromBasisWeight(
+            quantity: quantity,
+            unit: requested.label,
+            grams: grams,
+            basis: basis,
+            totalBasisGrams: food.basisPhysicalGrams!,
+          );
+        }
+        if (_matchesBasis(acceptedWeight, basisUnit) &&
+            _positiveFinite(basis.quantity)) {
+          return _fromBasisWeight(
+            quantity: quantity,
+            unit: requested.label,
+            grams: grams,
+            basis: basis,
+            totalBasisGrams: basis.quantity * acceptedWeight!.gramsPerUnit,
+            acceptedUnitWeight: acceptedWeight,
+          );
+        }
+        if (MacroCalculator.hasUsablePerHundred(food.perHundred)) {
+          return _fromPerHundred(
+            food: food,
+            quantity: quantity,
+            unit: requested.label,
+            grams: grams,
+          );
+        }
         return UnresolvedPortion(
-          PortionUnresolvedReason.incompatibleUnit,
+          PortionUnresolvedReason.missingPhysicalWeight,
           basisUnit: basisUnit.label,
         );
       }
-      final factor = converted / food.basis!.quantity;
-      return ResolvedPortion(
-        quantity: quantity,
-        unit: requested.label,
-        macros: food.basis!.macros.scaled(factor),
-        physicalGrams: food.basisPhysicalGrams == null
-            ? null
-            : food.basisPhysicalGrams! * factor,
+
+      if (_matchesRequested(acceptedWeight, requested) &&
+          MacroCalculator.hasUsablePerHundred(food.perHundred)) {
+        final grams = quantity * acceptedWeight!.gramsPerUnit;
+        return _fromPerHundred(
+          food: food,
+          quantity: quantity,
+          unit: requested.label,
+          grams: grams,
+          acceptedUnitWeight: acceptedWeight,
+        );
+      }
+      return UnresolvedPortion(
+        PortionUnresolvedReason.incompatibleUnit,
+        basisUnit: basisUnit.label,
       );
     }
     if (requested.family == FoodUnitFamily.mass) {
       final grams = quantity * requested.canonicalFactor;
-      return ResolvedPortion(
+      return _fromPerHundred(
+        food: food,
         quantity: quantity,
         unit: requested.label,
-        macros: MacroCalculator.forGrams(food.perHundred, grams),
-        physicalGrams: grams,
+        grams: grams,
       );
     }
-    if (requested.family == FoodUnitFamily.count &&
-        food.gramsPerPiece != null &&
-        food.gramsPerPiece!.isFinite &&
-        food.gramsPerPiece! > 0) {
-      final grams = quantity * food.gramsPerPiece!;
-      return ResolvedPortion(
+    if (_matchesRequested(acceptedWeight, requested) &&
+        MacroCalculator.hasUsablePerHundred(food.perHundred)) {
+      final grams = quantity * acceptedWeight!.gramsPerUnit;
+      return _fromPerHundred(
+        food: food,
         quantity: quantity,
         unit: requested.label,
-        macros: MacroCalculator.forGrams(food.perHundred, grams),
-        physicalGrams: grams,
+        grams: grams,
+        acceptedUnitWeight: acceptedWeight,
+      );
+    }
+    if (requested.label == 'piece' &&
+        food.gramsPerPiece != null &&
+        _positiveFinite(food.gramsPerPiece)) {
+      final grams = quantity * food.gramsPerPiece!;
+      return _fromPerHundred(
+        food: food,
+        quantity: quantity,
+        unit: requested.label,
+        grams: grams,
       );
     }
     return UnresolvedPortion(
@@ -97,4 +182,42 @@ class PortionCalculator {
       basisUnit: food.basis?.unit,
     );
   }
+
+  static ResolvedPortion _fromBasisWeight({
+    required double quantity,
+    required String unit,
+    required double grams,
+    required NutritionBasis basis,
+    required double totalBasisGrams,
+    FoodUnitWeight? acceptedUnitWeight,
+  }) => ResolvedPortion(
+    quantity: quantity,
+    unit: unit,
+    macros: basis.macros.scaled(grams / totalBasisGrams),
+    physicalGrams: grams,
+    acceptedUnitWeight: acceptedUnitWeight,
+  );
+
+  static ResolvedPortion _fromPerHundred({
+    required FoodMacros food,
+    required double quantity,
+    required String unit,
+    required double grams,
+    FoodUnitWeight? acceptedUnitWeight,
+  }) => ResolvedPortion(
+    quantity: quantity,
+    unit: unit,
+    macros: MacroCalculator.forGrams(food.perHundred, grams),
+    physicalGrams: grams,
+    acceptedUnitWeight: acceptedUnitWeight,
+  );
+
+  static bool _positiveFinite(double? value) =>
+      value != null && value.isFinite && value > 0;
+
+  static bool _matchesBasis(FoodUnitWeight? weight, FoodUnit basisUnit) =>
+      weight != null && weight.matchesUnit(basisUnit.label);
+
+  static bool _matchesRequested(FoodUnitWeight? weight, FoodUnit requested) =>
+      weight != null && weight.matchesUnit(requested.label);
 }

@@ -79,6 +79,9 @@ class WorkoutVoiceSession {
 
   final List<ScriptItem> _script = [];
   Timer? _rest;
+  DateTime? _restEndsAt;
+  bool _appIsForeground = true;
+  bool _backgroundAlertScheduled = false;
   int? pendingRestSeconds; // last requested rest length (for the UI/tests)
   bool _awaitingEffort = false;
   bool exited = false;
@@ -412,9 +415,36 @@ class WorkoutVoiceSession {
     final secs = intent.seconds ?? defaultRestSec;
     pendingRestSeconds = secs;
     _rest?.cancel();
+    if (_backgroundAlertScheduled) onRestCancelled?.call();
+    _backgroundAlertScheduled = false;
+    _restEndsAt = DateTime.now().add(Duration(seconds: secs));
     _rest = Timer(Duration(seconds: secs), announceRestOver);
-    onRestScheduled?.call(Duration(seconds: secs));
     await _speak('Resting $secs seconds.');
+  }
+
+  /// Transfers a running rest's completion ownership between foreground voice
+  /// and the OS notification when the hosting screen's lifecycle changes.
+  void setAppForeground(bool foreground) {
+    _appIsForeground = foreground;
+    final ends = _restEndsAt;
+    if (ends == null) return;
+    final remaining = ends.difference(DateTime.now());
+    if (!foreground) {
+      if (remaining > Duration.zero && !_backgroundAlertScheduled) {
+        _backgroundAlertScheduled = true;
+        onRestScheduled?.call(remaining);
+      }
+      return;
+    }
+    if (_backgroundAlertScheduled && remaining > Duration.zero) {
+      _backgroundAlertScheduled = false;
+      onRestCancelled?.call();
+    }
+    if (remaining <= Duration.zero) {
+      _rest?.cancel();
+      pendingRestSeconds = null;
+      _restEndsAt = null;
+    }
   }
 
   /// Spoken when the rest timer elapses. Public so the UI can also surface it
@@ -422,9 +452,12 @@ class WorkoutVoiceSession {
   Future<void> announceRestOver() async {
     if (_disposed) return;
     pendingRestSeconds = null;
+    _restEndsAt = null;
+    if (!_appIsForeground) return;
     // The in-app announcement is firing now (app is foreground) — drop the
     // redundant background notification so the alert isn't doubled.
-    onRestCancelled?.call();
+    if (_backgroundAlertScheduled) onRestCancelled?.call();
+    _backgroundAlertScheduled = false;
     await _speak("Rest's over. Let's go.");
   }
 

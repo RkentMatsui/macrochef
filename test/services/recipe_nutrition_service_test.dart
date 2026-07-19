@@ -7,6 +7,7 @@ import 'package:macrochef/data/repositories/log_repository.dart';
 import 'package:macrochef/data/repositories/recipe_repository.dart';
 import 'package:macrochef/data/repositories/target_repository.dart';
 import 'package:macrochef/models/daily.dart';
+import 'package:macrochef/models/food_unit_weight.dart';
 import 'package:macrochef/models/macros.dart';
 import 'package:macrochef/providers/llm/llm_provider.dart';
 import 'package:macrochef/models/chat.dart';
@@ -205,6 +206,7 @@ class FakeDailyLogService extends DailyLogService {
     int? recipeId,
     double? portionQuantity,
     String? portionUnit,
+    FoodUnitWeight? unitWeightEvidence,
   }) async {
     callCount++;
     lastDate = date;

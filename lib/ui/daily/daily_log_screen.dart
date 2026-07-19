@@ -1361,6 +1361,7 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
   }
 
   Future<void> _submitLookup() async {
+    if (_loading) return;
     final name = _nameCtrl.text.trim();
     final qtyText = _gramsCtrl.text.trim();
 
@@ -1381,32 +1382,28 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
 
     setState(() => _loading = true);
     try {
-      // Resolve the food FIRST so a saved per-piece weight can drive count units.
+      // Resolve nutrition first. The calculator below retains it and asks for
+      // cited unit-weight recovery only if this portion is unresolved.
       FoodMacros? fm = _resolvedMacros;
       if (fm == null || fm.name.toLowerCase() != name.toLowerCase()) {
         final lookup = await ref.read(foodLookupProvider.future);
-        fm = await lookup.resolveForPortion(name, requestedUnit: _unit.label);
-      } else if (_unit.family != FoodUnitFamily.mass &&
-          PortionCalculator.calculate(
-                food: fm,
-                quantity: qty,
-                unit: _unit.label,
-              )
-              is! ResolvedPortion &&
-          fm.source != MacroSource.manual) {
-        // A type-ahead USDA/local/OFF selection can contain only per-100-g
-        // values. Try a cited, unit-matched label before asking for grams.
-        final lookup = await ref.read(foodLookupProvider.future);
-        fm = await lookup.resolveForPortion(name, requestedUnit: _unit.label);
+        fm = await lookup.resolve(name);
       }
 
       if (!mounted) return;
 
       if (fm == null) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not find "$name".')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _unit.family == FoodUnitFamily.mass
+                  ? 'Could not find "$name".'
+                  : 'Couldn\'t find a reliable weight for one ${_unit.label} '
+                        'of “$name”. Choose grams, try another result, or enter macros manually.',
+            ),
+          ),
+        );
         return;
       }
 
@@ -1414,17 +1411,31 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
       // convert arithmetically; count units (piece/serving/slice) prefer this
       // food's SAVED grams-per-piece (e.g. a custom "tortilla = 50 g"); the
       // remaining household measures (cup/tbsp/…) fall back to an AI estimate.
-      final calculation = PortionCalculator.calculate(
+      var calculation = PortionCalculator.calculate(
         food: fm,
         quantity: qty,
         unit: _unit.label,
       );
       if (calculation is! ResolvedPortion) {
+        final lookup = await ref.read(foodLookupProvider.future);
+        calculation = await lookup.recoverPortion(
+          food: fm,
+          quantity: qty,
+          requestedUnit: _unit.label,
+          initial: calculation,
+        );
+      }
+      if (!mounted) return;
+      if (calculation is! ResolvedPortion) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'No published ${_unit.label} serving was found. Enter a real weight in grams.',
+              _unit.family == FoodUnitFamily.mass
+                  ? 'Couldn\'t find per-100 g nutrition or a reliable serving '
+                        'weight for “$name”. Try another result or enter macros manually.'
+                  : 'Couldn\'t find a reliable weight for one ${_unit.label} '
+                        'of “$name”. Choose grams, try another result, or enter macros manually.',
             ),
           ),
         );
@@ -1442,6 +1453,7 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
             source: fm.source,
             portionQuantity: qty,
             portionUnit: _unit.label,
+            unitWeightEvidence: calculation.acceptedUnitWeight,
           );
       // A cited, web-grounded result becomes a user-owned offline food once
       // logged. Keep its original portion and citation rather than rebuilding
@@ -1472,15 +1484,15 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
       if (!mounted) return;
       Navigator.of(context).pop();
       widget.onAdded();
-      // A count basis can be valid without a physical weight. Only show an
-      // approximation when a source actually supplied one.
-      final portion = _unit.label == 'g' || calculation.physicalGrams == null
-          ? ''
-          : ' · ${_trimNum(qty)} ${_unit.label} ≈ ${grams.toStringAsFixed(0)} g';
+      final displayUnit = _displayUnit(_unit.label, qty);
+      final approximateGrams =
+          calculation.acceptedUnitWeight?.isEstimate == true
+          ? ' ≈ ${grams.toStringAsFixed(0)} g'
+          : '';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Added ${fm.name}.$portion',
+            'Added ${fm.name} · ${_trimNum(qty)} $displayUnit$approximateGrams',
             style: const TextStyle(color: Colors.white),
           ),
           backgroundColor: AppColors.textHi,
@@ -1499,6 +1511,22 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
+  }
+
+  String _displayUnit(String unit, double quantity) {
+    if (quantity == 1 ||
+        const {'g', 'kg', 'oz', 'ml', 'tsp', 'tbsp'}.contains(unit)) {
+      return unit;
+    }
+    return switch (unit) {
+      'piece' => 'pieces',
+      'slice' => 'slices',
+      'stick' => 'sticks',
+      'item' => 'items',
+      'serving' => 'servings',
+      'cup' => 'cups',
+      _ => unit,
+    };
   }
 
   void _onNameChanged(String value) {

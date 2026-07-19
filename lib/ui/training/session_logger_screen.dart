@@ -45,8 +45,12 @@ class _ExerciseBlock {
   /// "last time" reference. Indexed by set position (0-based).
   final List<SetEntry> previousSets;
 
-  _ExerciseBlock(this.exercise, this.position, this.sets,
-      {this.previousSets = const []});
+  _ExerciseBlock(
+    this.exercise,
+    this.position,
+    this.sets, {
+    this.previousSets = const [],
+  });
 }
 
 class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
@@ -68,22 +72,26 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
   // Guards against double-firing: once the alert (in-app tone or the background
   // notification) has handled this rest, we don't fire again.
   bool _restAlerted = false;
+  // Invalidates pending background-alert results whenever the rest changes.
+  int _restGeneration = 0;
   // Latest app lifecycle state. The in-app tone (audioplayers) is inaudible
   // while backgrounded, so we only take that path when actually resumed and
   // otherwise let the scheduled notification's sound fire.
   AppLifecycleState _appState = AppLifecycleState.resumed;
 
-  RestAlertService get _alerts => ref.read(restAlertServiceProvider);
+  late final RestAlertService _alerts;
 
   @override
   void initState() {
     super.initState();
+    _alerts = ref.read(restAlertServiceProvider);
     WidgetsBinding.instance.addObserver(this);
     _load();
   }
 
   @override
   void dispose() {
+    _restGeneration++;
     WidgetsBinding.instance.removeObserver(this);
     _restTimer?.cancel();
     // Leaving the logger: drop any pending background rest alert so it can't
@@ -99,13 +107,23 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _appState = state;
-    if (state != AppLifecycleState.resumed) return;
+    if (state != AppLifecycleState.resumed) {
+      final ends = _restEndsAt;
+      if (ends != null && !_restAlerted) {
+        final remaining = ends.difference(DateTime.now());
+        if (remaining > Duration.zero) {
+          unawaited(_scheduleRestAlert(remaining, _restGeneration));
+        }
+      }
+      return;
+    }
     final ends = _restEndsAt;
     if (ends == null || _restAlerted) return;
     final remaining = ends.difference(DateTime.now()).inSeconds;
     if (remaining <= 0) {
       _finishRest(playTone: false); // notification already fired in background
     } else {
+      _alerts.cancelBackgroundAlert();
       setState(() => _restRemaining = remaining);
     }
   }
@@ -117,8 +135,9 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
     final repo = ref.read(trainingRepositoryProvider);
     final svc = ref.read(weightServiceProvider);
     final isLb = await svc.isLbs;
-    final restRaw =
-        await ref.read(settingsRepositoryProvider).get(kTrainingRestSecKey);
+    final restRaw = await ref
+        .read(settingsRepositoryProvider)
+        .get(kTrainingRestSecKey);
     final defaultRest = int.tryParse(restRaw ?? '') ?? kDefaultRestSec;
     final sets = await repo.setsForSession(widget.sessionId);
 
@@ -135,8 +154,9 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
           .map((s) => _LoggedSet(s.id, _toRowData(s)))
           .toList();
       final previous = await repo.previousSessionSetsFor(exercise.id);
-      blocks.add(_ExerciseBlock(exercise, entry.key, rows,
-          previousSets: previous));
+      blocks.add(
+        _ExerciseBlock(exercise, entry.key, rows, previousSets: previous),
+      );
     }
     blocks.sort((a, b) => a.position.compareTo(b.position));
 
@@ -158,6 +178,7 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
   /// app being backgrounded; a background notification (sound + vibration) is
   /// scheduled in parallel so the alert fires even if the app is suspended.
   void _startRest([int? secs]) {
+    final generation = ++_restGeneration;
     final total = secs ?? _defaultRestSec;
     _restTimer?.cancel();
     _restAlerted = false;
@@ -166,9 +187,38 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
       _restTotal = total;
       _restRemaining = total;
     });
-    _alerts.scheduleBackgroundAlert(Duration(seconds: total));
-    _restTimer =
-        Timer.periodic(const Duration(seconds: 1), (_) => _tickRest());
+    unawaited(_checkRestAlertAvailability(generation));
+    _restTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tickRest());
+  }
+
+  Future<void> _scheduleRestAlert(Duration after, int generation) async {
+    final result = await _alerts.scheduleBackgroundAlert(after);
+    if (!mounted ||
+        generation != _restGeneration ||
+        result != RestAlertScheduleResult.notificationsDenied) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Background rest alerts are disabled in Android settings.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _checkRestAlertAvailability(int generation) async {
+    final result = await _alerts.backgroundAlertAvailability();
+    if (!mounted ||
+        generation != _restGeneration ||
+        result != RestAlertScheduleResult.notificationsDenied) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Background rest alerts are disabled in Android settings.'),
+      ),
+    );
   }
 
   void _tickRest() {
@@ -193,6 +243,7 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
   /// background the notification already alerted, so we clear silently.
   void _finishRest({required bool playTone}) {
     if (_restAlerted) return;
+    _restGeneration++;
     _restAlerted = true;
     _restTimer?.cancel();
     _restEndsAt = null;
@@ -205,6 +256,7 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
   }
 
   void _stopRest() {
+    _restGeneration++;
     _restTimer?.cancel();
     _restAlerted = true; // suppress any late fire
     _restEndsAt = null;
@@ -219,13 +271,18 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
   /// wall-clock end and reschedules the background notification to match.
   void _bumpRest(int delta) {
     if (_restRemaining <= 0 || _restEndsAt == null) return;
+    final generation = ++_restGeneration;
     final newRemaining = (_restRemaining + delta).clamp(5, 3600);
     _restEndsAt = DateTime.now().add(Duration(seconds: newRemaining));
-    _alerts.scheduleBackgroundAlert(Duration(seconds: newRemaining));
     setState(() {
       _restRemaining = newRemaining;
       if (_restRemaining > _restTotal) _restTotal = _restRemaining;
     });
+    if (_appState != AppLifecycleState.resumed) {
+      unawaited(
+        _scheduleRestAlert(Duration(seconds: newRemaining), generation),
+      );
+    }
   }
 
   static String _fmtRest(int s) {
@@ -252,8 +309,9 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
     );
   }
 
-  int get _nextPosition =>
-      _blocks.isEmpty ? 0 : _blocks.map((b) => b.position).reduce((a, b) => a > b ? a : b) + 1;
+  int get _nextPosition => _blocks.isEmpty
+      ? 0
+      : _blocks.map((b) => b.position).reduce((a, b) => a > b ? a : b) + 1;
 
   Future<void> _addExercise() async {
     final picked = await Navigator.of(context).push<Exercise>(
@@ -265,8 +323,9 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
         .previousSessionSetsFor(picked.id);
     if (!mounted) return;
     setState(() {
-      _blocks.add(_ExerciseBlock(picked, _nextPosition, [],
-          previousSets: previous));
+      _blocks.add(
+        _ExerciseBlock(picked, _nextPosition, [], previousSets: previous),
+      );
     });
   }
 
@@ -286,7 +345,8 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
           ..rpe = null;
       }
     }
-    final data = template?.copy() ??
+    final data =
+        template?.copy() ??
         prefill ??
         SetRowData(unit: _displayUnit, isWarmup: false);
     // A freshly added set is always pending until the user checks it off — the
@@ -330,7 +390,9 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
     if (weightKg != null && block.exercise.tracksWeight) {
       weightKg = TrainingService.toKg(weightKg, data.unit);
     }
-    await ref.read(trainingRepositoryProvider).updateSet(
+    await ref
+        .read(trainingRepositoryProvider)
+        .updateSet(
           logged.id,
           SetEntriesUpdate.build(
             reps: data.reps,
@@ -366,8 +428,10 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Session effort (RPE)',
-            style: TextStyle(color: AppColors.textHi)),
+        title: const Text(
+          'Session effort (RPE)',
+          style: TextStyle(color: AppColors.textHi),
+        ),
         content: StatefulBuilder(
           builder: (ctx, setLocal) => Wrap(
             spacing: 6,
@@ -384,11 +448,13 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Skip')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Skip'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, selected),
-              child: const Text('Done')),
+            onPressed: () => Navigator.pop(ctx, selected),
+            child: const Text('Done'),
+          ),
         ],
       ),
     );
@@ -428,7 +494,8 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: AppColors.ember))
+              child: CircularProgressIndicator(color: AppColors.ember),
+            )
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
               children: [
@@ -437,18 +504,25 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
                     padding: const EdgeInsets.symmetric(vertical: 40),
                     child: Column(
                       children: [
-                        const Icon(PhosphorIconsDuotone.barbell,
-                            size: 56, color: AppColors.textLow),
+                        const Icon(
+                          PhosphorIconsDuotone.barbell,
+                          size: 56,
+                          color: AppColors.textLow,
+                        ),
                         const SizedBox(height: 12),
-                        Text('No exercises yet',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textHi,
-                            )),
+                        Text(
+                          'No exercises yet',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textHi,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        const Text('Add an exercise to start logging sets.',
-                            style: TextStyle(color: AppColors.textMid)),
+                        const Text(
+                          'Add an exercise to start logging sets.',
+                          style: TextStyle(color: AppColors.textMid),
+                        ),
                       ],
                     ),
                   ),
@@ -456,17 +530,24 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   onPressed: _addExercise,
-                  icon: const Icon(PhosphorIconsBold.plus,
-                      color: AppColors.ember, size: 18),
-                  label: const Text('Add exercise',
-                      style: TextStyle(
-                          color: AppColors.ember,
-                          fontWeight: FontWeight.w700)),
+                  icon: const Icon(
+                    PhosphorIconsBold.plus,
+                    color: AppColors.ember,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Add exercise',
+                    style: TextStyle(
+                      color: AppColors.ember,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.ember),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                 ),
               ],
@@ -507,23 +588,30 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
         children: [
           Row(
             children: [
-              const Icon(PhosphorIconsFill.timer,
-                  size: 20, color: AppColors.ember),
+              const Icon(
+                PhosphorIconsFill.timer,
+                size: 20,
+                color: AppColors.ember,
+              ),
               const SizedBox(width: 8),
-              Text('Rest',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textMid,
-                  )),
+              Text(
+                'Rest',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMid,
+                ),
+              ),
               const SizedBox(width: 10),
-              Text(_fmtRest(_restRemaining),
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textHi,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  )),
+              Text(
+                _fmtRest(_restRemaining),
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textHi,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
               const Spacer(),
               _restChip('-15', () => _bumpRest(-15)),
               const SizedBox(width: 6),
@@ -536,8 +624,10 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   minimumSize: const Size(0, 36),
                 ),
-                child: const Text('Skip',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+                child: const Text(
+                  'Skip',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),
@@ -548,8 +638,7 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
               value: progress.clamp(0.0, 1.0),
               minHeight: 5,
               backgroundColor: AppColors.ember.withValues(alpha: 0.15),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppColors.ember),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.ember),
             ),
           ),
         ],
@@ -567,11 +656,14 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.line),
         ),
-        child: Text(label,
-            style: const TextStyle(
-                color: AppColors.ember,
-                fontWeight: FontWeight.w800,
-                fontSize: 13)),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.ember,
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+          ),
+        ),
       ),
     );
   }
@@ -590,28 +682,36 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(e.name,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textHi,
-                        )),
-                  ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(PhosphorIconsRegular.chartLineUp,
-                        size: 18, color: AppColors.ember),
-                    tooltip: 'Progression',
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              ExerciseDetailScreen(exercise: e)),
+                    child: Text(
+                      e.name,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textHi,
+                      ),
                     ),
                   ),
                   IconButton(
                     visualDensity: VisualDensity.compact,
-                    icon: const Icon(PhosphorIconsRegular.trash,
-                        size: 18, color: AppColors.textLow),
+                    icon: const Icon(
+                      PhosphorIconsRegular.chartLineUp,
+                      size: 18,
+                      color: AppColors.ember,
+                    ),
+                    tooltip: 'Progression',
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ExerciseDetailScreen(exercise: e),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(
+                      PhosphorIconsRegular.trash,
+                      size: 18,
+                      color: AppColors.textLow,
+                    ),
                     onPressed: () => _removeBlock(block),
                   ),
                 ],
@@ -638,10 +738,15 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _addSet(block),
-                      icon: const Icon(PhosphorIconsRegular.plus,
-                          size: 16, color: AppColors.ember),
-                      label: const Text('Add set',
-                          style: TextStyle(color: AppColors.ember)),
+                      icon: const Icon(
+                        PhosphorIconsRegular.plus,
+                        size: 16,
+                        color: AppColors.ember,
+                      ),
+                      label: const Text(
+                        'Add set',
+                        style: TextStyle(color: AppColors.ember),
+                      ),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: AppColors.line),
                         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -652,12 +757,17 @@ class _SessionLoggerScreenState extends ConsumerState<SessionLoggerScreen>
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _addSet(block,
-                            template: block.sets.last.data),
-                        icon: const Icon(PhosphorIconsRegular.copy,
-                            size: 16, color: AppColors.ember),
-                        label: const Text('Repeat last',
-                            style: TextStyle(color: AppColors.ember)),
+                        onPressed: () =>
+                            _addSet(block, template: block.sets.last.data),
+                        icon: const Icon(
+                          PhosphorIconsRegular.copy,
+                          size: 16,
+                          color: AppColors.ember,
+                        ),
+                        label: const Text(
+                          'Repeat last',
+                          style: TextStyle(color: AppColors.ember),
+                        ),
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: AppColors.line),
                           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -708,8 +818,7 @@ class SetEntriesUpdate {
       rpe: Value(rpe),
       enteredUnit: Value(enteredUnit),
       isWarmup: Value(isWarmup),
-      completed:
-          completed == null ? const Value.absent() : Value(completed),
+      completed: completed == null ? const Value.absent() : Value(completed),
     );
   }
 }

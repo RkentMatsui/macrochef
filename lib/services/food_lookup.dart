@@ -1,8 +1,10 @@
 import 'dart:developer' as developer;
 import 'dart:typed_data';
 import '../models/macros.dart';
+import '../models/food_unit_weight.dart';
 import '../providers/llm/llm_provider.dart';
 import '../data/repositories/food_cache_repository.dart';
+import '../data/repositories/food_unit_weight_repository.dart';
 import 'food_db/open_food_facts_client.dart';
 import 'food_db/usda_client.dart';
 import 'nutrition/food_row.dart';
@@ -19,6 +21,7 @@ class FoodLookup {
   final String? usdaKey;
   final NutritionRetriever? nutritionRetriever;
   final FoodWebGrounder? webGrounder;
+  final FoodUnitWeightRepository? unitWeights;
 
   FoodLookup({
     required this.cache,
@@ -28,18 +31,18 @@ class FoodLookup {
     this.usdaKey,
     this.nutritionRetriever,
     this.webGrounder,
+    this.unitWeights,
   });
 
   Future<FoodMacros?> resolve(String foodName) => _resolve(foodName);
 
-  /// Resolves food nutrition for a specific logging unit. For a non-mass unit,
-  /// a per-100-g-only structured result is not enough: before the UI asks for
-  /// a weight, this retries web grounding for a cited matching label basis.
-  /// It never estimates or fabricates a gram weight for a count label.
+  /// Resolves nutrition while preserving the normal cache/structured-source
+  /// ordering. Callers calculate the requested portion first, then use
+  /// [recoverPortion] only when that calculation lacks physical evidence.
   Future<FoodMacros?> resolveForPortion(
     String foodName, {
     required String requestedUnit,
-  }) => _resolve(foodName, requestedUnit: requestedUnit);
+  }) => resolve(foodName);
 
   Future<FoodMacros?> _resolve(String foodName, {String? requestedUnit}) async {
     try {
@@ -50,6 +53,10 @@ class FoodLookup {
         if (_supportsRequestedUnit(cached, requestedUnit)) {
           return cached;
         }
+        // User-authored nutrition is authoritative. Physical evidence may be
+        // recovered later by [recoverPortion], but a same-named web product
+        // must never replace the user's macros.
+        if (cached.source == MacroSource.manual) return cached;
         return await _resolveRequestedUnitFallback(
               foodName,
               requestedUnit: requestedUnit,
@@ -145,6 +152,7 @@ class FoodLookup {
           isEstimate: false,
           gramsPerPiece: offResult.gramsPerPiece,
           basis: offResult.basis,
+          basisPhysicalGrams: offResult.basisPhysicalGrams,
         );
         if (_supportsRequestedUnit(macros, requestedUnit)) {
           await cache.put(macros);
@@ -287,14 +295,100 @@ class FoodLookup {
 
   bool _supportsRequestedUnit(FoodMacros food, String? requestedUnit) {
     if (requestedUnit == null) return true;
-    final unit = foodUnitByLabel(requestedUnit);
-    if (unit == null || unit.family == FoodUnitFamily.mass) return true;
     return PortionCalculator.calculate(
           food: food,
           quantity: 1,
           unit: requestedUnit,
         )
         is ResolvedPortion;
+  }
+
+  /// Retries an unresolved calculator result using durable, cited unit-weight
+  /// evidence. This never looks up nutrition: authored or cached macros remain
+  /// the values being scaled.
+  Future<PortionCalculation> recoverPortion({
+    required FoodMacros food,
+    required double quantity,
+    required String requestedUnit,
+    required PortionCalculation initial,
+  }) async {
+    if (initial is! UnresolvedPortion) return initial;
+    final evidenceUnit = _missingEvidenceUnit(food, requestedUnit, initial);
+    if (evidenceUnit == null) return initial;
+    final recovery = await recoverUnitWeight(food, requestedUnit: evidenceUnit);
+    final evidence = recovery.weight;
+    if (evidence == null) return initial;
+    return PortionCalculator.calculate(
+      food: food,
+      quantity: quantity,
+      unit: requestedUnit,
+      unitWeight: evidence,
+    );
+  }
+
+  /// Obtains evidence from the durable cache before making at most one cited
+  /// web-grounding request. All normal failures have a typed unavailable value.
+  Future<UnitWeightRecoveryResult> recoverUnitWeight(
+    FoodMacros food, {
+    required String requestedUnit,
+  }) async {
+    final unit = foodUnitByLabel(requestedUnit);
+    if (unit == null || unit.family == FoodUnitFamily.mass) {
+      return const UnitWeightUnavailable();
+    }
+    final repository = unitWeights;
+    if (repository != null) {
+      try {
+        final cached = await repository.find(food.name, unit.label);
+        if (cached != null && cached.isValid) {
+          return UnitWeightRecoveryResult.cache(cached);
+        }
+      } on Object {
+        // A cache failure is non-fatal; one cited web attempt remains allowed.
+      }
+    }
+    final grounder = webGrounder;
+    if (grounder == null) return const UnitWeightUnavailable();
+    try {
+      final result = await grounder
+          .groundUnitWeight(food.name, requestedUnit: unit.label)
+          .timeout(const Duration(seconds: 5));
+      if (result == null ||
+          !result.isValid ||
+          !result.weight.matchesUnit(unit.label)) {
+        return const UnitWeightUnavailable();
+      }
+      // A grounder may match a generic equivalent (for example, "generic
+      // soup") while answering a request for a branded/name-specific food.
+      // Cache evidence under the requested food key so the next identical log
+      // can reuse it, while retaining its cited provenance and estimate kind.
+      final evidence = FoodUnitWeight(
+        foodName: food.name,
+        unit: result.weight.unit,
+        gramsPerUnit: result.weight.gramsPerUnit,
+        kind: result.weight.kind,
+        provenance: result.weight.provenance,
+      );
+      if (repository != null) await repository.upsert(evidence);
+      return UnitWeightRecoveryResult.web(evidence);
+    } on Object {
+      return const UnitWeightUnavailable();
+    }
+  }
+
+  String? _missingEvidenceUnit(
+    FoodMacros food,
+    String requestedUnit,
+    UnresolvedPortion initial,
+  ) {
+    final requested = foodUnitByLabel(requestedUnit);
+    if (requested == null) return null;
+    if (requested.family != FoodUnitFamily.mass) return requested.label;
+    final basisUnit = initial.basisUnit ?? food.basis?.unit;
+    final basis = basisUnit == null ? null : foodUnitByLabel(basisUnit);
+    return basis != null && basis.family != FoodUnitFamily.mass
+        ? basis.label
+        : null;
   }
 
   static const Map<String, dynamic> _estimateSchema = {

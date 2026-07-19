@@ -1,3 +1,4 @@
+import '../models/food_unit_weight.dart';
 import '../models/macros.dart';
 
 /// Provider-independent capability for grounding an otherwise unresolved food
@@ -13,6 +14,90 @@ abstract class FoodWebGrounder {
     String foodName, {
     required String requestedUnit,
   }) => ground(foodName);
+
+  /// Searches for cited grams for exactly one [requestedUnit].
+  ///
+  /// Grounders which do not support unit-weight recovery return null; callers
+  /// can represent that outcome without treating it as an exception.
+  Future<GroundedUnitWeightResult?> groundUnitWeight(
+    String foodName, {
+    required String requestedUnit,
+  }) async => null;
+}
+
+/// Provider-independent cited unit-weight evidence returned by a web grounder.
+class GroundedUnitWeightResult {
+  final FoodUnitWeight weight;
+
+  const GroundedUnitWeightResult._(this.weight);
+
+  /// Rejects malformed provider evidence before it can enter a success path.
+  static GroundedUnitWeightResult? tryCreate(FoodUnitWeight weight) =>
+      weight.isValid ? GroundedUnitWeightResult._(weight) : null;
+
+  bool get isEstimate => weight.isEstimate;
+  String? validate() => weight.validate();
+  bool get isValid => validate() == null;
+}
+
+/// A non-throwing, exhaustive result for recovering a requested unit weight.
+sealed class UnitWeightRecoveryResult {
+  const UnitWeightRecoveryResult();
+
+  FoodUnitWeight? get weight;
+
+  /// Cache evidence is accepted only when it remains valid.
+  factory UnitWeightRecoveryResult.cache(FoodUnitWeight weight) =>
+      weight.isValid
+      ? UnitWeightCacheHit._(weight)
+      : const UnitWeightUnavailable();
+
+  /// Web evidence selects its typed estimate state from its validated kind.
+  factory UnitWeightRecoveryResult.web(FoodUnitWeight weight) {
+    if (!weight.isValid) return const UnitWeightUnavailable();
+    return switch (weight.kind) {
+      FoodUnitWeightKind.published => UnitWeightWebPublished._(weight),
+      FoodUnitWeightKind.average => UnitWeightWebAverage._(weight),
+    };
+  }
+}
+
+final class UnitWeightCacheHit extends UnitWeightRecoveryResult {
+  @override
+  final FoodUnitWeight weight;
+
+  const UnitWeightCacheHit._(this.weight);
+}
+
+final class UnitWeightWebPublished extends UnitWeightRecoveryResult {
+  @override
+  final FoodUnitWeight weight;
+
+  const UnitWeightWebPublished._(this.weight);
+}
+
+final class UnitWeightWebAverage extends UnitWeightRecoveryResult {
+  @override
+  final FoodUnitWeight weight;
+
+  const UnitWeightWebAverage._(this.weight);
+}
+
+final class UnitWeightUnavailable extends UnitWeightRecoveryResult {
+  const UnitWeightUnavailable();
+
+  @override
+  FoodUnitWeight? get weight => null;
+}
+
+final class UnitWeightFailed extends UnitWeightRecoveryResult {
+  /// A user-safe diagnostic; no exception is needed for normal UI flow.
+  final String? message;
+
+  const UnitWeightFailed([this.message]);
+
+  @override
+  FoodUnitWeight? get weight => null;
 }
 
 /// Nutrition returned by a web-grounding provider, expressed in the source's

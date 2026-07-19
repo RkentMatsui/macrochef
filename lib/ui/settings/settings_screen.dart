@@ -1700,6 +1700,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final removed = await ref
         .read(foodCacheRepositoryProvider)
         .clearNonOverrides();
+    await ref.read(foodUnitWeightRepositoryProvider).clearAutoSourced();
     if (!mounted) return;
     _notifySaved(
       removed == 0

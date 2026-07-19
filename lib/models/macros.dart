@@ -24,6 +24,13 @@ class FoodProvenance {
       title.trim().isNotEmpty;
 
   bool get isEstimate => inferredFields.isNotEmpty;
+
+  FoodProvenance copyWith({Set<String>? inferredFields}) => FoodProvenance(
+    url: url,
+    title: title,
+    retrievedAt: retrievedAt,
+    inferredFields: inferredFields ?? this.inferredFields,
+  );
 }
 
 class PerHundred {

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macrochef/models/daily.dart';
+import 'package:macrochef/models/food_unit_weight.dart';
 import 'package:macrochef/models/macros.dart';
 import 'package:macrochef/services/food_web_grounder.dart';
 
@@ -28,6 +29,18 @@ GroundedFoodResult result({
 );
 
 void main() {
+  test(
+    'grounders without unit-weight support safely return unavailable',
+    () async {
+      final grounder = _LegacyGrounder();
+
+      expect(
+        await grounder.groundUnitWeight('Tortilla', requestedUnit: 'piece'),
+        isNull,
+      );
+    },
+  );
+
   test('grounded result rejects missing citation and invalid nutrition', () {
     expect(result(url: Uri()).isValid, isFalse);
     expect(result(title: ' ').isValid, isFalse);
@@ -42,6 +55,84 @@ void main() {
     expect(grounded.isValid, isTrue);
     expect(grounded.isEstimate, isTrue);
     expect(grounded.provenance.isEstimate, isTrue);
+  });
+
+  test(
+    'typed unit-weight recovery selects a state that matches valid evidence',
+    () {
+      final published = FoodUnitWeight(
+        foodName: 'Tortilla',
+        unit: 'piece',
+        gramsPerUnit: 85,
+        kind: FoodUnitWeightKind.published,
+        provenance: FoodProvenance(
+          url: Uri.parse('https://example.com/tortilla'),
+          title: 'Tortilla nutrition facts',
+          retrievedAt: DateTime(2026, 7, 15),
+        ),
+      );
+
+      final average = FoodUnitWeight(
+        foodName: 'Tortilla',
+        unit: 'piece',
+        gramsPerUnit: 85,
+        kind: FoodUnitWeightKind.average,
+        provenance: published.provenance,
+      );
+
+      final cache = UnitWeightRecoveryResult.cache(published);
+      final publishedWeb = UnitWeightRecoveryResult.web(published);
+      final averageWeb = UnitWeightRecoveryResult.web(average);
+
+      expect(cache, isA<UnitWeightCacheHit>());
+      expect(cache.weight, same(published));
+      expect(publishedWeb, isA<UnitWeightWebPublished>());
+      expect(publishedWeb.weight, same(published));
+      expect(averageWeb, isA<UnitWeightWebAverage>());
+      expect(averageWeb.weight, same(average));
+      expect(
+        GroundedUnitWeightResult.tryCreate(published)?.weight,
+        same(published),
+      );
+      expect(const UnitWeightUnavailable().weight, isNull);
+      expect(const UnitWeightFailed().weight, isNull);
+    },
+  );
+
+  test('invalid unit-weight evidence can only recover as unavailable', () {
+    final invalidPublished = FoodUnitWeight(
+      foodName: 'Tortilla',
+      unit: 'piece',
+      gramsPerUnit: 5001,
+      kind: FoodUnitWeightKind.published,
+      provenance: FoodProvenance(
+        url: Uri.parse('https://example.com/tortilla'),
+        title: 'Tortilla nutrition facts',
+        retrievedAt: DateTime(2026, 7, 15),
+      ),
+    );
+    final invalidAverage = FoodUnitWeight(
+      foodName: 'Tortilla',
+      unit: 'piece',
+      gramsPerUnit: 5001,
+      kind: FoodUnitWeightKind.average,
+      provenance: invalidPublished.provenance,
+    );
+
+    expect(
+      UnitWeightRecoveryResult.cache(invalidPublished),
+      isA<UnitWeightUnavailable>(),
+    );
+    expect(
+      UnitWeightRecoveryResult.web(invalidPublished),
+      isA<UnitWeightUnavailable>(),
+    );
+    expect(
+      UnitWeightRecoveryResult.web(invalidAverage),
+      isA<UnitWeightUnavailable>(),
+    );
+    expect(GroundedUnitWeightResult.tryCreate(invalidPublished), isNull);
+    expect(GroundedUnitWeightResult.tryCreate(invalidAverage), isNull);
   });
 
   test('adaptive applied result retains dated audit statistics', () {
@@ -68,4 +159,9 @@ void main() {
     expect(outcome.record.appliedAdjustmentKcal, -150);
     expect(outcome.record.reason, 'lose');
   });
+}
+
+class _LegacyGrounder extends FoodWebGrounder {
+  @override
+  Future<GroundedFoodResult?> ground(String foodName) async => null;
 }

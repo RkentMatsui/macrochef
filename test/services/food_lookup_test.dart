@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/native.dart';
 import 'package:macrochef/models/macros.dart';
 import 'package:macrochef/providers/llm/llm_provider.dart';
 import 'package:macrochef/models/chat.dart';
@@ -11,6 +13,8 @@ import 'package:macrochef/services/portion_calculator.dart';
 import 'package:macrochef/data/repositories/food_cache_repository.dart';
 import 'package:macrochef/data/database.dart';
 import 'package:macrochef/services/food_web_grounder.dart';
+import 'package:macrochef/data/repositories/food_unit_weight_repository.dart';
+import 'package:macrochef/models/food_unit_weight.dart';
 
 // ---------------------------------------------------------------------------
 // Fakes
@@ -100,6 +104,24 @@ class ServingOpenFoodFactsClient extends OpenFoodFactsClient {
   );
 }
 
+class PhysicalServingOpenFoodFactsClient extends OpenFoodFactsClient {
+  PhysicalServingOpenFoodFactsClient() : super();
+
+  @override
+  Future<FoodMacros?> searchFood(String query) async => const FoodMacros(
+    name: 'physical soup',
+    perHundred: PerHundred(kcal: 100, protein: 3, carb: 10, fat: 2),
+    source: MacroSource.off,
+    isEstimate: false,
+    basisPhysicalGrams: 85,
+    basis: NutritionBasis(
+      quantity: 1,
+      unit: 'serving',
+      macros: MacroValues(kcal: 85, protein: 2.55, carb: 8.5, fat: 1.7),
+    ),
+  );
+}
+
 class FakeUsdaClient extends UsdaClient {
   final PerHundred? _result;
   FakeUsdaClient(this._result) : super(apiKey: 'fake');
@@ -163,7 +185,57 @@ class FakeFoodWebGrounder implements FoodWebGrounder {
     this.requestedUnit = requestedUnit;
     return ground(foodName);
   }
+
+  @override
+  Future<GroundedUnitWeightResult?> groundUnitWeight(
+    String foodName, {
+    required String requestedUnit,
+  }) async => null;
 }
+
+class UnitWeightGrounder extends FakeFoodWebGrounder {
+  UnitWeightGrounder(this.unitWeight) : super(null);
+  final GroundedUnitWeightResult? unitWeight;
+  int unitWeightCalls = 0;
+  @override
+  Future<GroundedUnitWeightResult?> groundUnitWeight(
+    String foodName, {
+    required String requestedUnit,
+  }) async {
+    unitWeightCalls++;
+    return unitWeight;
+  }
+}
+
+class RecoveryGrounder extends FakeFoodWebGrounder {
+  RecoveryGrounder({this.unitResult, this.recoveryError}) : super(null);
+  final GroundedUnitWeightResult? unitResult;
+  final Object? recoveryError;
+  final List<String> units = [];
+
+  @override
+  Future<GroundedUnitWeightResult?> groundUnitWeight(
+    String foodName, {
+    required String requestedUnit,
+  }) async {
+    units.add(requestedUnit);
+    if (recoveryError != null) throw recoveryError!;
+    return unitResult;
+  }
+}
+
+FoodUnitWeight citedWeight(String food, String unit, double grams) =>
+    FoodUnitWeight(
+      foodName: food,
+      unit: unit,
+      gramsPerUnit: grams,
+      kind: FoodUnitWeightKind.published,
+      provenance: FoodProvenance(
+        url: Uri.parse('https://example.com/weight'),
+        title: 'Label',
+        retrievedAt: DateTime(2026, 7, 15),
+      ),
+    );
 
 class StickOpenFoodFactsClient extends OpenFoodFactsClient {
   StickOpenFoodFactsClient() : super();
@@ -228,6 +300,309 @@ void main() {
     protein: 31,
     carb: 0,
     fat: 3.6,
+  );
+
+  test(
+    'recovers a generic matched weight under the requested food name',
+    () async {
+      const food = FoodMacros(
+        name: 'custom soup',
+        perHundred: PerHundred.zero,
+        source: MacroSource.manual,
+        isEstimate: false,
+        basis: NutritionBasis(
+          quantity: 1,
+          unit: 'serving',
+          macros: MacroValues(kcal: 200, protein: 10, carb: 30, fat: 4),
+        ),
+      );
+      final weight = citedWeight('generic soup', 'serving', 100);
+      final db = AppDatabase(NativeDatabase.memory());
+      final repo = FoodUnitWeightRepository(db);
+      final grounder = UnitWeightGrounder(
+        GroundedUnitWeightResult.tryCreate(weight),
+      );
+      final lookup = FoodLookup(
+        cache: FakeFoodCacheRepository(),
+        off: FakeOpenFoodFactsClient(null),
+        usda: FakeUsdaClient(null),
+        llm: FakeLLMProvider({}),
+        unitWeights: repo,
+        webGrounder: grounder,
+      );
+      const initial = UnresolvedPortion(
+        PortionUnresolvedReason.missingPhysicalWeight,
+        basisUnit: 'serving',
+      );
+
+      final first = await lookup.recoverPortion(
+        food: food,
+        quantity: 60,
+        requestedUnit: 'g',
+        initial: initial,
+      );
+      final second = await lookup.recoverPortion(
+        food: food,
+        quantity: 60,
+        requestedUnit: 'g',
+        initial: initial,
+      );
+
+      expect((first as ResolvedPortion).macros.kcal, 120);
+      expect((second as ResolvedPortion).macros.kcal, 120);
+      expect(grounder.unitWeightCalls, 1);
+      expect(
+        (await repo.find('custom soup', 'serving'))!.foodName,
+        'custom soup',
+      );
+      expect(await repo.find('generic soup', 'serving'), isNull);
+      await db.close();
+    },
+  );
+
+  test('preserves OFF physical serving grams when caching', () async {
+    final cache = FakeFoodCacheRepository();
+    final result = await FoodLookup(
+      cache: cache,
+      off: PhysicalServingOpenFoodFactsClient(),
+      usda: FakeUsdaClient(null),
+      llm: FakeLLMProvider({}),
+    ).resolve('physical soup');
+
+    expect(result!.basisPhysicalGrams, 85);
+    expect((await cache.find('physical soup'))!.basisPhysicalGrams, 85);
+  });
+
+  test('usable per-100-g food resolves grams without a web recovery', () async {
+    final grounder = RecoveryGrounder();
+    const food = FoodMacros(
+      name: 'rice',
+      perHundred: PerHundred(kcal: 130, protein: 2, carb: 28, fat: 0.3),
+      source: MacroSource.usda,
+      isEstimate: false,
+    );
+    final initial = PortionCalculator.calculate(
+      food: food,
+      quantity: 60,
+      unit: 'g',
+    );
+    final result =
+        await FoodLookup(
+          cache: FakeFoodCacheRepository(),
+          off: FakeOpenFoodFactsClient(null),
+          usda: FakeUsdaClient(null),
+          llm: FakeLLMProvider({}),
+          webGrounder: grounder,
+        ).recoverPortion(
+          food: food,
+          quantity: 60,
+          requestedUnit: 'g',
+          initial: initial,
+        );
+
+    expect(result, isA<ResolvedPortion>());
+    expect(grounder.units, isEmpty);
+  });
+
+  test('cached per-100-g food resolves grams without a web call', () async {
+    final cache = FakeFoodCacheRepository();
+    await cache.put(
+      const FoodMacros(
+        name: 'cached rice',
+        perHundred: PerHundred(kcal: 130, protein: 2, carb: 28, fat: 0.3),
+        source: MacroSource.usda,
+        isEstimate: false,
+      ),
+    );
+    final grounder = RecoveryGrounder();
+    final result = await FoodLookup(
+      cache: cache,
+      off: FakeOpenFoodFactsClient(null),
+      usda: FakeUsdaClient(null),
+      llm: FakeLLMProvider({}),
+      webGrounder: grounder,
+    ).resolveForPortion('cached rice', requestedUnit: 'g');
+
+    expect(result!.name, 'cached rice');
+    expect(grounder.callCount, 0);
+    expect(grounder.units, isEmpty);
+  });
+
+  test(
+    'published physical serving grams resolve without web recovery',
+    () async {
+      final grounder = RecoveryGrounder();
+      const food = FoodMacros(
+        name: 'soup',
+        perHundred: PerHundred.zero,
+        source: MacroSource.off,
+        isEstimate: false,
+        basisPhysicalGrams: 100,
+        basis: NutritionBasis(
+          quantity: 1,
+          unit: 'serving',
+          macros: MacroValues(kcal: 200, protein: 10, carb: 30, fat: 4),
+        ),
+      );
+      final initial = PortionCalculator.calculate(
+        food: food,
+        quantity: 60,
+        unit: 'g',
+      );
+      final result =
+          await FoodLookup(
+            cache: FakeFoodCacheRepository(),
+            off: FakeOpenFoodFactsClient(null),
+            usda: FakeUsdaClient(null),
+            llm: FakeLLMProvider({}),
+            webGrounder: grounder,
+          ).recoverPortion(
+            food: food,
+            quantity: 60,
+            requestedUnit: 'g',
+            initial: initial,
+          );
+
+      expect(result, isA<ResolvedPortion>());
+      expect(grounder.units, isEmpty);
+    },
+  );
+
+  test('cached published serving grams resolve without a web call', () async {
+    final cache = FakeFoodCacheRepository();
+    await cache.put(
+      const FoodMacros(
+        name: 'cached soup',
+        perHundred: PerHundred.zero,
+        source: MacroSource.off,
+        isEstimate: false,
+        basisPhysicalGrams: 100,
+        basis: NutritionBasis(
+          quantity: 1,
+          unit: 'serving',
+          macros: MacroValues(kcal: 200, protein: 10, carb: 30, fat: 4),
+        ),
+      ),
+    );
+    final grounder = RecoveryGrounder();
+    final result = await FoodLookup(
+      cache: cache,
+      off: FakeOpenFoodFactsClient(null),
+      usda: FakeUsdaClient(null),
+      llm: FakeLLMProvider({}),
+      webGrounder: grounder,
+    ).resolveForPortion('cached soup', requestedUnit: 'g');
+
+    expect(result!.basisPhysicalGrams, 100);
+    expect(grounder.callCount, 0);
+    expect(grounder.units, isEmpty);
+  });
+
+  test(
+    'cached unit weight resolves a requested unit without web recovery',
+    () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      final repo = FoodUnitWeightRepository(db);
+      await repo.upsert(citedWeight('rice', 'cup', 158));
+      final grounder = RecoveryGrounder();
+      const food = FoodMacros(
+        name: 'rice',
+        perHundred: PerHundred(kcal: 130, protein: 2, carb: 28, fat: 0.3),
+        source: MacroSource.usda,
+        isEstimate: false,
+      );
+      const initial = UnresolvedPortion(
+        PortionUnresolvedReason.missingPhysicalWeight,
+      );
+      final result =
+          await FoodLookup(
+            cache: FakeFoodCacheRepository(),
+            off: FakeOpenFoodFactsClient(null),
+            usda: FakeUsdaClient(null),
+            llm: FakeLLMProvider({}),
+            webGrounder: grounder,
+            unitWeights: repo,
+          ).recoverPortion(
+            food: food,
+            quantity: 1,
+            requestedUnit: 'cup',
+            initial: initial,
+          );
+
+      expect(result, isA<ResolvedPortion>());
+      expect(grounder.units, isEmpty);
+      await db.close();
+    },
+  );
+
+  test('invalid unit-weight recovery outcomes are typed unavailable', () async {
+    const food = FoodMacros(
+      name: 'rice',
+      perHundred: PerHundred.zero,
+      source: MacroSource.usda,
+      isEstimate: false,
+    );
+    final wrongUnit = GroundedUnitWeightResult.tryCreate(
+      citedWeight('rice', 'piece', 50),
+    );
+    for (final grounder in [
+      RecoveryGrounder(),
+      RecoveryGrounder(unitResult: wrongUnit),
+      RecoveryGrounder(recoveryError: StateError('offline')),
+      RecoveryGrounder(recoveryError: TimeoutException('timed out')),
+    ]) {
+      final result = await FoodLookup(
+        cache: FakeFoodCacheRepository(),
+        off: FakeOpenFoodFactsClient(null),
+        usda: FakeUsdaClient(null),
+        llm: FakeLLMProvider({}),
+        webGrounder: grounder,
+      ).recoverUnitWeight(food, requestedUnit: 'cup');
+      expect(result, isA<UnitWeightUnavailable>());
+      expect(grounder.units, ['cup']);
+    }
+  });
+
+  test(
+    'gramless auto basis recovers its serving weight for a mass request',
+    () async {
+      const food = FoodMacros(
+        name: 'prepared soup',
+        perHundred: PerHundred.zero,
+        source: MacroSource.off,
+        isEstimate: false,
+        basis: NutritionBasis(
+          quantity: 1,
+          unit: 'serving',
+          macros: MacroValues(kcal: 200, protein: 10, carb: 30, fat: 4),
+        ),
+      );
+      final grounder = RecoveryGrounder(
+        unitResult: GroundedUnitWeightResult.tryCreate(
+          citedWeight('prepared soup', 'serving', 100),
+        ),
+      );
+      const initial = UnresolvedPortion(
+        PortionUnresolvedReason.missingPhysicalWeight,
+        basisUnit: 'serving',
+      );
+      final result =
+          await FoodLookup(
+            cache: FakeFoodCacheRepository(),
+            off: FakeOpenFoodFactsClient(null),
+            usda: FakeUsdaClient(null),
+            llm: FakeLLMProvider({}),
+            webGrounder: grounder,
+          ).recoverPortion(
+            food: food,
+            quantity: 60,
+            requestedUnit: 'g',
+            initial: initial,
+          );
+
+      expect((result as ResolvedPortion).macros.kcal, 120);
+      expect(grounder.units, ['serving']);
+    },
   );
 
   test('cache hit short-circuits all other lookups', () async {
@@ -302,7 +677,7 @@ void main() {
   });
 
   test(
-    'per-100-g structured result grounds a requested stick before weight',
+    'structured nutrition is retained before unresolved unit recovery',
     () async {
       const per = PerHundred(kcal: 350, protein: 0, carb: 70, fat: 7.5);
       final grounder = FakeFoodWebGrounder(groundedCountFood('stick'));
@@ -314,11 +689,10 @@ void main() {
         webGrounder: grounder,
       ).resolveForPortion('instant coffee stick', requestedUnit: 'stick');
 
-      expect(grounder.callCount, 1);
-      expect(grounder.requestedUnit, 'stick');
-      expect(result!.basis!.unit, 'stick');
-      expect(result.basis!.macros.kcal, 70);
-      expect(result.gramsPerPiece, isNull);
+      expect(grounder.callCount, 0);
+      expect(result!.source, MacroSource.off);
+      expect(result.perHundred, per);
+      expect(result.basis, isNull);
     },
   );
 
@@ -335,49 +709,61 @@ void main() {
         webGrounder: grounder,
       ).resolveForPortion('unknown bar', requestedUnit: 'piece');
 
-      expect(grounder.requestedUnit, 'piece');
+      expect(grounder.callCount, 0);
       expect(result!.basis, isNull);
     },
   );
 
-  test('count request falls back to a gramless AI portion estimate', () async {
-    const per = PerHundred(kcal: 250, protein: 20, carb: 10, fat: 15);
-    final result = await FoodLookup(
-      cache: FakeFoodCacheRepository(),
-      off: FakeOpenFoodFactsClient(per),
-      usda: FakeUsdaClient(null),
-      llm: FakeLLMProvider({'kcal': 320, 'protein': 28, 'carb': 12, 'fat': 18}),
-      webGrounder: FakeFoodWebGrounder(null),
-    ).resolveForPortion('Jollibee chicken breast', requestedUnit: 'piece');
+  test(
+    'count request retains structured nutrition for later recovery',
+    () async {
+      const per = PerHundred(kcal: 250, protein: 20, carb: 10, fat: 15);
+      final result = await FoodLookup(
+        cache: FakeFoodCacheRepository(),
+        off: FakeOpenFoodFactsClient(per),
+        usda: FakeUsdaClient(null),
+        llm: FakeLLMProvider({
+          'kcal': 320,
+          'protein': 28,
+          'carb': 12,
+          'fat': 18,
+        }),
+        webGrounder: FakeFoodWebGrounder(null),
+      ).resolveForPortion('Jollibee chicken breast', requestedUnit: 'piece');
 
-    expect(result, isNotNull);
-    expect(result!.basis!.quantity, 1);
-    expect(result.basis!.unit, 'piece');
-    expect(result.basis!.macros.kcal, 320);
-    expect(result.isEstimate, isTrue);
-    final portion =
-        PortionCalculator.calculate(food: result, quantity: 1, unit: 'piece')
-            as ResolvedPortion;
-    expect(portion.physicalGrams, isNull);
-    expect(portion.macros.protein, 28);
-  });
+      expect(result, isNotNull);
+      expect(result!.source, MacroSource.off);
+      expect(result.isEstimate, isFalse);
+      expect(result.basis, isNull);
+      expect(result.perHundred, per);
+    },
+  );
 
   test(
-    'per-100-g structured result grounds a requested piece without grams',
+    'cached nutrition is not substituted by unit-specific grounding',
     () async {
       const per = PerHundred(kcal: 250, protein: 8, carb: 35, fat: 8);
       final grounder = FakeFoodWebGrounder(groundedCountFood('piece'));
+      final cache = FakeFoodCacheRepository();
+      await cache.put(
+        const FoodMacros(
+          name: 'protein bar',
+          perHundred: per,
+          source: MacroSource.usda,
+          isEstimate: false,
+        ),
+      );
       final result = await FoodLookup(
-        cache: FakeFoodCacheRepository(),
+        cache: cache,
         off: FakeOpenFoodFactsClient(per),
         usda: FakeUsdaClient(null),
         llm: FakeLLMProvider({}),
         webGrounder: grounder,
       ).resolveForPortion('protein bar', requestedUnit: 'piece');
 
-      expect(grounder.requestedUnit, 'piece');
-      expect(result!.basis!.unit, 'piece');
-      expect(result.gramsPerPiece, isNull);
+      expect(grounder.callCount, 0);
+      expect(result!.source, MacroSource.usda);
+      expect(result.perHundred, per);
     },
   );
 

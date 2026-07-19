@@ -13,7 +13,7 @@ void main() {
   tearDown(() => db.close());
 
   test('v16 exposes provenance, physical basis, and target history', () async {
-    expect(db.schemaVersion, 16);
+    expect(db.schemaVersion, 18);
     await db
         .into(db.foodCache)
         .insert(
@@ -84,6 +84,15 @@ void main() {
       );
     ''');
     raw.execute('''
+      CREATE TABLE log_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL, food_name TEXT NOT NULL, grams REAL NOT NULL,
+        kcal REAL NOT NULL, protein REAL NOT NULL, carb REAL NOT NULL,
+        fat REAL NOT NULL, fibre REAL, source TEXT NOT NULL, recipe_id INTEGER,
+        portion_quantity REAL, portion_unit TEXT
+      );
+    ''');
+    raw.execute('''
       INSERT INTO food_cache (name, source, kcal100, protein100, carb100, fat100)
       VALUES ('legacy food', 'usda', 100, 5, 10, 2);
     ''');
@@ -128,6 +137,15 @@ void main() {
         basis_needs_review INTEGER NOT NULL DEFAULT 0,
         source_url TEXT, source_title TEXT, source_retrieved_at INTEGER,
         source_inferred_fields TEXT
+      );
+    ''');
+    raw.execute('''
+      CREATE TABLE log_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL, food_name TEXT NOT NULL, grams REAL NOT NULL,
+        kcal REAL NOT NULL, protein REAL NOT NULL, carb REAL NOT NULL,
+        fat REAL NOT NULL, fibre REAL, source TEXT NOT NULL, recipe_id INTEGER,
+        portion_quantity REAL, portion_unit TEXT
       );
     ''');
     raw.execute('''

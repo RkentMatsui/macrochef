@@ -11,6 +11,7 @@ import '../services/shared_storage.dart';
 import '../data/repositories/grocery_repository.dart';
 import '../data/repositories/recipe_repository.dart';
 import '../data/repositories/food_cache_repository.dart';
+import '../data/repositories/food_unit_weight_repository.dart';
 import '../data/repositories/log_repository.dart';
 import '../data/repositories/target_repository.dart';
 import '../data/repositories/settings_repository.dart';
@@ -122,6 +123,12 @@ final recipeRepositoryProvider = Provider<RecipeRepository>((ref) {
 
 final foodCacheRepositoryProvider = Provider<FoodCacheRepository>((ref) {
   return FoodCacheRepository(ref.watch(appDatabaseProvider));
+});
+
+final foodUnitWeightRepositoryProvider = Provider<FoodUnitWeightRepository>((
+  ref,
+) {
+  return FoodUnitWeightRepository(ref.watch(appDatabaseProvider));
 });
 
 final logRepositoryProvider = Provider<LogRepository>((ref) {
@@ -315,6 +322,7 @@ final foodLookupProvider = FutureProvider<FoodLookup>((ref) async {
     usdaKey: usdaKey,
     nutritionRetriever: retriever,
     webGrounder: webGrounder,
+    unitWeights: ref.watch(foodUnitWeightRepositoryProvider),
   );
 });
 

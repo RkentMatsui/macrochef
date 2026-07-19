@@ -23,6 +23,7 @@ class FakeSharedStorage implements SharedStorage, SharedStorageBatchDeletion {
   bool corruptPublishedCopy;
   SharedDeleteResult ownedDeleteResult;
   SharedDeleteBatchResult batchResult;
+  final List<SharedDeleteBatchResult> batchResults;
   final List<List<String>> batchDeleted = [];
   final Map<String, String> _publishedSources = {};
   FakeSharedStorage({
@@ -34,7 +35,9 @@ class FakeSharedStorage implements SharedStorage, SharedStorageBatchDeletion {
     this.corruptPublishedCopy = false,
     this.ownedDeleteResult = SharedDeleteResult.deleted,
     this.batchResult = const SharedDeleteBatchResult(),
-  }) : existing = List.of(existing);
+    List<SharedDeleteBatchResult> batchResults = const [],
+  }) : existing = List.of(existing),
+       batchResults = List.of(batchResults);
 
   @override
   Future<String> saveToDownloads(File source, String fileName) async {
@@ -84,7 +87,15 @@ class FakeSharedStorage implements SharedStorage, SharedStorageBatchDeletion {
   @override
   Future<SharedDeleteBatchResult> deleteDownloadsBatch(List<String> ids) async {
     batchDeleted.add(ids);
-    return batchResult;
+    final result = batchResults.isEmpty
+        ? batchResult
+        : batchResults.removeAt(0);
+    existing.removeWhere(
+      (backup) =>
+          result.deletedIds.contains(backup.id) ||
+          result.notFoundIds.contains(backup.id),
+    );
+    return result;
   }
 }
 
@@ -559,6 +570,109 @@ void main() {
           settings[kAutoBackupCleanupRetryAfterMsKey],
           now.millisecondsSinceEpoch.toString(),
         );
+      },
+    );
+
+    test(
+      'legacy batch cleanup drains every approved stale backup without deleting manual exports',
+      () async {
+        final shared = FakeSharedStorage(
+          existing: [
+            for (var day = 1; day <= 8; day++)
+              SharedBackup(
+                id: 'legacy$day',
+                name: 'macrochef-backup-2026070$day-1200.sqlite',
+                addedAt: DateTime(2026, 7, day),
+              ),
+            SharedBackup(
+              id: 'manual',
+              name: 'macrochef-manual-20260701-1200.sqlite',
+              addedAt: DateTime(2026, 7, 1),
+            ),
+          ],
+          batchResult: const SharedDeleteBatchResult(
+            deletedIds: {'legacy1', 'legacy2', 'legacy3', 'legacy4'},
+          ),
+        );
+
+        await build(shared).runOnLaunch(DateTime(2026, 7, 10, 12));
+
+        expect(shared.batchDeleted, [
+          ['legacy4', 'legacy3', 'legacy2', 'legacy1'],
+        ]);
+        expect(
+          shared.existing
+              .where((backup) => isRetainedAutomaticBackupFileName(backup.name))
+              .map((backup) => backup.id),
+          unorderedEquals([
+            'legacy5',
+            'legacy6',
+            'legacy7',
+            'legacy8',
+            'content://macrochef-auto-20260710-1200.sqlite',
+          ]),
+        );
+        expect(shared.existing.map((backup) => backup.id), contains('manual'));
+      },
+    );
+
+    test(
+      'legacy cleanup continues with stale rows left after a declined Android 10 approval',
+      () async {
+        final shared = FakeSharedStorage(
+          existing: [
+            for (var day = 1; day <= 7; day++)
+              SharedBackup(
+                id: 'legacy$day',
+                name: 'macrochef-backup-2026070$day-1200.sqlite',
+                addedAt: DateTime(2026, 7, day),
+              ),
+            SharedBackup(
+              id: 'manual',
+              name: 'macrochef-manual-20260701-1200.sqlite',
+              addedAt: DateTime(2026, 7, 1),
+            ),
+          ],
+          batchResults: const [
+            SharedDeleteBatchResult(deletedIds: {'legacy2'}, declined: true),
+            SharedDeleteBatchResult(deletedIds: {'legacy1'}),
+          ],
+        );
+        final first = DateTime(2026, 7, 10, 12);
+        settings[kLastAutoBackupMsKey] = first.millisecondsSinceEpoch
+            .toString();
+
+        final firstResult = await build(shared).runOnLaunch(first);
+        expect(firstResult.warning, isNotNull);
+        expect(shared.batchDeleted, [
+          ['legacy2', 'legacy1'],
+        ]);
+
+        // Keep this launch throttled so it exercises only the delayed cleanup
+        // result, not a newly published snapshot consuming another slot.
+        final second = first.add(kAutoBackupCleanupRetryDelay);
+        settings[kLastAutoBackupMsKey] = second.millisecondsSinceEpoch
+            .toString();
+        final secondResult = await build(shared).runOnLaunch(second);
+
+        expect(secondResult.warning, isNull);
+        expect(shared.batchDeleted, [
+          ['legacy2', 'legacy1'],
+          ['legacy1'],
+        ]);
+        expect(
+          shared.existing
+              .where((backup) => isRetainedAutomaticBackupFileName(backup.name))
+              .map((backup) => backup.id),
+          unorderedEquals([
+            'legacy3',
+            'legacy4',
+            'legacy5',
+            'legacy6',
+            'legacy7',
+          ]),
+        );
+        expect(shared.existing.map((backup) => backup.id), contains('manual'));
       },
     );
 
